@@ -5,6 +5,31 @@ import re
 
 from spx_processing_func import *
 
+
+import zipfile
+import tempfile
+import shutil
+
+def extract_spx_files_from_zip(zip_file):
+    """Extract SPX files from uploaded ZIP file to temporary directory"""
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
+        
+        # Find all SPX files recursively
+        temp_path = Path(temp_dir)
+        spx_files = list(temp_path.rglob('*.spx'))
+        
+        return temp_dir, sorted(spx_files)
+    except Exception as e:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise e
+    
+
+    
+
 st.set_page_config(layout="wide")
 
 st.title("CSV File Generator for Sample Database")
