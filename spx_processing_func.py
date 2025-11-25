@@ -1044,7 +1044,7 @@ def main():
             st.markdown("##### SPX Files")
             spx_folder_path = st.text_input(
                 f"SPX Folder Path for {selected_layer.upper()}", 
-                value=r"D:\High-throughput program\Mongo DB\ver10-newstructure\Full data\SPX", 
+                value=r"D:\High-throughput program\Mongo DB\New Versions\Full data\Measurement\SPX", 
                 placeholder=f"/path/to/{selected_layer}/spx/files"
             )
             
@@ -1318,4 +1318,5 @@ def main():
                     )
 
 if __name__ == "__main__":
+
     main()
