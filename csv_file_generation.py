@@ -1029,8 +1029,7 @@ with tab4:
     if 'processed_data' not in st.session_state:
         st.session_state.processed_data = None
     
-    st.markdown("Process and combine SPX files with XRF Excel data for multiple layers")
-    st.markdown("---")
+    st.header("XRF&SPX CSV File Generator")
     
     # Metadata section
     metadata_dict = render_metadata_section()
@@ -1348,4 +1347,5 @@ with tab4:
                         mime="text/csv",
                         type="primary",
                         key=f"download_optical_{layer_name}"
+
                     )
