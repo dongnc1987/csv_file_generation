@@ -1,5 +1,9 @@
 import streamlit as st
 from datetime import datetime
+import re
+
+
+from spx_processing_func import *
 
 st.set_page_config(layout="wide")
 
@@ -54,11 +58,62 @@ def generate_fabrication_filename(sample_number, institution, operator, sequence
         'Sputtering': 'Sputtering',
         'Tube Furnace': 'TubeFurnace',
         'RTP': 'RTP',
-        'PLD': 'PLD'
+        'PLD': 'PLD',
+        'PVD-P': 'PVDP'
     }
     method_formatted = method_map.get(method, method.upper())
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{sample_number}_{institution}_{operator_formatted}_fab{sequence}_{method_formatted}_{current_datetime}.csv"
+
+
+def parse_pvdp_csv(uploaded_file):
+    """Parse PVD-P CSV file and extract metadata"""
+    content = uploaded_file.getvalue().decode('utf-8')
+    lines = content.split('\n')
+    
+    metadata = {
+        'sample_number': None,
+        'process_id': None,
+        'operator_code': None,
+        'date': None,
+        'time': None
+    }
+    
+    for line in lines:
+        if line.startswith('# Date:'):
+            date_str = line.replace('# Date:', '').strip()
+            metadata['date'] = date_str
+        elif line.startswith('# Time:'):
+            time_str = line.replace('# Time:', '').strip()
+            metadata['time'] = time_str
+        elif line.startswith('# Substrate Number:'):
+            sample_num = line.replace('# Substrate Number:', '').strip()
+            metadata['sample_number'] = sample_num
+        elif line.startswith('# process ID:'):
+            process_id = line.replace('# process ID:', '').strip()
+            metadata['process_id'] = process_id
+        elif line.startswith('# operator:'):
+            operator_code = line.replace('# operator:', '').strip()
+            metadata['operator_code'] = operator_code
+    
+    return metadata, content
+
+
+def replace_operator_in_csv(csv_content, old_operator, new_operator):
+    """Replace operator code with actual operator name in CSV content"""
+    return csv_content.replace(f"# operator: {old_operator}", f"# operator: {new_operator}")
+
+
+def generate_pvdp_filename_from_metadata(sample_number, institution, operator, sequence, date_str, time_str):
+    """Generate PVD-P filename from extracted metadata"""
+    operator_formatted = operator.replace(' ', '_')
+    
+    date_obj = datetime.strptime(date_str, "%Y/%m/%d")
+    date_formatted = date_obj.strftime("%Y%m%d")
+    
+    time_formatted = time_str.replace(':', '')
+    
+    return f"{sample_number}_{institution}_{operator_formatted}_fab{sequence}_PVDP_{date_formatted}_{time_formatted}.csv"
 
 
 def generate_substrate_csv_content(data):
@@ -228,8 +283,6 @@ def generate_treatment_filename(sample_number, institution, operator, sequence, 
     return f"{sample_number}_{institution}_{operator_formatted}_treat{sequence}_{method_formatted}_{current_datetime}.csv"
 
 
-# Replace the generate functions with this single unified function:
-
 def generate_treatment_csv_content(common_data, specific_data):
     """Generate Treatment CSV content (works for both Annealing and As-deposited)"""
     csv_content = f"""sample_number,{common_data['sample_number']}
@@ -250,12 +303,9 @@ treat_time,"{common_data['time']}"
     return csv_content
 
 
-
-
-
 # ==================== TAB 1: SUBSTRATE GENERATION ====================
 
-tab1, tab2, tab3 = st.tabs(["Substrate Generation", "Fabrication Generation", "Treatment Generation"])
+tab1, tab2, tab3, tab4 = st.tabs(["Substrate Generation", "Fabrication Generation", "Treatment Generation", "XRF&SPX Generation"])
 
 
 with tab1:
@@ -264,7 +314,7 @@ with tab1:
     # Set default values
     st.session_state.sub_sample_number = st.session_state.get('sub_sample_number', "3716-15")
     st.session_state.sub_institution = st.session_state.get('sub_institution', "HZB")
-    st.session_state.sub_operator = st.session_state.get('sub_operator', "Lars Drescher")
+    st.session_state.sub_operator = st.session_state.get('sub_operator', "Dong Nguyen")
     st.session_state.sub_substrate_type = st.session_state.get('sub_substrate_type', "quartz")
     st.session_state.sub_thickness = st.session_state.get('sub_thickness', "1.1")
     st.session_state.sub_size = st.session_state.get('sub_size', "50.8x50.8")
@@ -326,7 +376,7 @@ with tab1:
         if not st.session_state.sub_sample_number or not st.session_state.sub_institution or not st.session_state.sub_operator or not st.session_state.sub_substrate_type:
             st.error("Please fill in all required fields: Sample Number, Institution, Operator, and Substrate Type")
         elif not validate_operator_name(st.session_state.sub_operator):
-            st.error("Operator must include both First Name and Last Name (e.g., Lars Drescher)")
+            st.error("Operator must include both First Name and Last Name (e.g., Dong Nguyen)")
         else:
             date_formatted = format_date(st.session_state.sub_clean_date)
             time_formatted = convert_time_to_12hour(st.session_state.sub_clean_time)
@@ -386,7 +436,7 @@ with tab2:
     
     fab_method = st.selectbox(
         "Select Fabrication Method",
-        ["PVD-J", "Sputtering", "Tube Furnace", "RTP", "PLD"]
+        ["PVD-J", "Sputtering", "Tube Furnace", "RTP", "PLD", "PVD-P"]
     )
     
     # Set common default values
@@ -397,25 +447,82 @@ with tab2:
     st.session_state.fab_date = st.session_state.get('fab_date', datetime.now().date())
     st.session_state.fab_time = st.session_state.get('fab_time', "14:01:15")
     
-    st.subheader("Common Information")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.session_state.fab_sample_number = st.text_input("Sample Number", value=st.session_state.fab_sample_number, key="fab_sn")
-        st.session_state.fab_institution = st.text_input("Institution", value=st.session_state.fab_institution, key="fab_inst")
-    
-    with col2:
-        st.session_state.fab_operator = st.text_input("Operator (First and Last Name)", value=st.session_state.fab_operator, key="fab_op")
-        st.session_state.fab_sequence = st.text_input("Fabrication Sequence", value=st.session_state.fab_sequence, key="fab_seq")
-    
-    with col3:
-        st.session_state.fab_date = st.date_input("Fabrication Date", value=st.session_state.fab_date, key="fab_date_input")
-        st.session_state.fab_time = st.text_input("Fabrication Time", value=st.session_state.fab_time, help="Format: HH:MM:SS (24-hour)", key="fab_time_input")
-    
-    st.divider()
+    if fab_method != "PVD-P":
+        st.subheader("Common Information")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.session_state.fab_sample_number = st.text_input("Sample Number", value=st.session_state.fab_sample_number, key="fab_sn")
+            st.session_state.fab_institution = st.text_input("Institution", value=st.session_state.fab_institution, key="fab_inst")
+        
+        with col2:
+            st.session_state.fab_operator = st.text_input("Operator (First and Last Name)", value=st.session_state.fab_operator, key="fab_op")
+            st.session_state.fab_sequence = st.text_input("Fabrication Sequence", value=st.session_state.fab_sequence, key="fab_seq")
+        
+        with col3:
+            st.session_state.fab_date = st.date_input("Fabrication Date", value=st.session_state.fab_date, key="fab_date_input")
+            st.session_state.fab_time = st.text_input("Fabrication Time", value=st.session_state.fab_time, help="Format: HH:MM:SS (24-hour)", key="fab_time_input")
+        
+        st.divider()
     
     # Method-specific parameters with default values
-    if fab_method == "PVD-J":
+    if fab_method == "PVD-P":
+        st.subheader("PVD-P CSV Upload")
+      
+        uploaded_file = st.file_uploader("Upload PVD-P CSV File", type=['csv'], key="pvdp_upload")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            pvdp_institution = st.text_input("Institution", value="HZB", key="pvdp_inst")
+        
+        with col2:
+            pvdp_operator = st.text_input("Operator (First and Last Name)", value="Henry Gos", key="pvdp_op")
+        
+        pvdp_sequence = st.text_input("Fabrication Sequence", value="1", key="pvdp_seq")
+        
+        if uploaded_file is not None:
+            metadata, csv_content = parse_pvdp_csv(uploaded_file)
+            
+            st.success("File uploaded successfully!")
+            
+            with st.expander("Extracted Metadata from CSV"):
+                st.write(f"Sample Number: {metadata['sample_number']}")
+                st.write(f"Process ID: {metadata['process_id']}")
+                st.write(f"Operator Code: {metadata['operator_code']}")
+                st.write(f"Date: {metadata['date']}")
+                st.write(f"Time: {metadata['time']}")
+            
+            st.divider()
+            
+            if st.button("Generate PVD-P CSV File", type="primary"):
+                if not pvdp_operator or not pvdp_institution or not pvdp_sequence:
+                    st.error("Please fill in Institution, Operator, and Sequence")
+                elif not validate_operator_name(pvdp_operator):
+                    st.error("Operator must include both First Name and Last Name")
+                else:
+                    updated_csv = replace_operator_in_csv(csv_content, metadata['operator_code'], pvdp_operator)
+                    
+                    filename = generate_pvdp_filename_from_metadata(
+                        metadata['sample_number'],
+                        pvdp_institution,
+                        pvdp_operator,
+                        pvdp_sequence,
+                        metadata['date'],
+                        metadata['time']
+                    )
+                    
+                    st.success("CSV file generated successfully!")
+                    st.info(f"Filename: {filename}")
+                    
+                    st.download_button(
+                        label="Download PVD-P CSV File",
+                        data=updated_csv,
+                        file_name=filename,
+                        mime="text/csv"
+                    )
+    
+    elif fab_method == "PVD-J":
         st.subheader("PVD-J Parameters")
         
         st.session_state.fab_process_number = st.session_state.get('fab_process_number', "P001")
@@ -618,137 +725,137 @@ with tab2:
             st.session_state.fab_gas_type = st.text_input("Gas Type", value=st.session_state.fab_gas_type, key="pld_gas")
             st.session_state.fab_duration_minutes = st.text_input("Duration (minutes)", value=st.session_state.fab_duration_minutes, key="pld_dur")
     
-    st.divider()
-    
-    if st.button("Generate Fabrication CSV File", type="primary"):
-        if not st.session_state.fab_sample_number or not st.session_state.fab_institution or not st.session_state.fab_operator or not st.session_state.fab_sequence:
-            st.error("Please fill in all required fields: Sample Number, Institution, Operator, and Sequence")
-        elif not validate_operator_name(st.session_state.fab_operator):
-            st.error("Operator must include both First Name and Last Name")
-        else:
-            date_formatted = format_date(st.session_state.fab_date)
-            time_formatted = convert_time_to_12hour(st.session_state.fab_time)
-            
-            if not time_formatted:
-                st.error("Invalid time format. Please use HH:MM:SS format")
+    if fab_method != "PVD-P":
+        st.divider()
+        
+        if st.button("Generate Fabrication CSV File", type="primary"):
+            if not st.session_state.fab_sample_number or not st.session_state.fab_institution or not st.session_state.fab_operator or not st.session_state.fab_sequence:
+                st.error("Please fill in all required fields: Sample Number, Institution, Operator, and Sequence")
+            elif not validate_operator_name(st.session_state.fab_operator):
+                st.error("Operator must include both First Name and Last Name")
             else:
-                common_data = {
-                    'sample_number': st.session_state.fab_sample_number,
-                    'institution': st.session_state.fab_institution,
-                    'operator': st.session_state.fab_operator,
-                    'method': fab_method,
-                    'sequence': st.session_state.fab_sequence,
-                    'date': date_formatted,
-                    'time': time_formatted
-                }
+                date_formatted = format_date(st.session_state.fab_date)
+                time_formatted = convert_time_to_12hour(st.session_state.fab_time)
                 
-                csv_content = ""
-                
-                if fab_method == "PVD-J":
-                    specific_data = {
-                        'process_number': st.session_state.fab_process_number,
-                        'recipe_name': st.session_state.fab_recipe_name,
-                        'box_type': st.session_state.fab_box_type,
-                        'duration_minutes': st.session_state.fab_duration_minutes,
-                        'substrate_temperature_celsius': st.session_state.fab_substrate_temperature_celsius,
-                        'cooling_temperature_celsius': st.session_state.fab_cooling_temperature_celsius,
-                        'holding_time_seconds': st.session_state.fab_holding_time_seconds,
-                        'rate_nmol_per_cm2_per_sec': st.session_state.fab_rate_nmol_per_cm2_per_sec,
-                        'power_W': st.session_state.fab_power_W,
-                        'tooling_factor': st.session_state.fab_tooling_factor,
-                        'xtal': st.session_state.fab_xtal,
-                        'sample_orientation': st.session_state.fab_sample_orientation,
-                        'sample_mass_before_mg': st.session_state.fab_sample_mass_before_mg,
-                        'sample_mass_after_mg': st.session_state.fab_sample_mass_after_mg
+                if not time_formatted:
+                    st.error("Invalid time format. Please use HH:MM:SS format")
+                else:
+                    common_data = {
+                        'sample_number': st.session_state.fab_sample_number,
+                        'institution': st.session_state.fab_institution,
+                        'operator': st.session_state.fab_operator,
+                        'method': fab_method,
+                        'sequence': st.session_state.fab_sequence,
+                        'date': date_formatted,
+                        'time': time_formatted
                     }
-                    csv_content = generate_pvdj_csv_content(common_data, specific_data)
-                
-                elif fab_method == "Sputtering":
-                    specific_data = {
-                        'program': st.session_state.fab_program,
-                        'duration_minutes': st.session_state.fab_duration_minutes,
-                        'power_W': st.session_state.fab_power_W,
-                        'current_A': st.session_state.fab_current_A,
-                        'voltage_V': st.session_state.fab_voltage_V,
-                        'gas_mix': st.session_state.fab_gas_mix,
-                        'process_pressure_mbar': st.session_state.fab_process_pressure_mbar,
-                        'pre_fab_pressure': st.session_state.fab_pre_fab_pressure,
-                        'note': st.session_state.fab_note
-                    }
-                    csv_content = generate_sputtering_csv_content(common_data, specific_data)
-                
-                elif fab_method == "Tube Furnace":
-                    specific_data = {
-                        'temperature_celsius': st.session_state.fab_temperature_celsius,
-                        'rample_celsius_per_min': st.session_state.fab_rample_celsius_per_min,
-                        'amount_selenium_g': st.session_state.fab_amount_selenium_g,
-                        'amount_sulfur_g': st.session_state.fab_amount_sulfur_g,
-                        'pressure_mbar': st.session_state.fab_pressure_mbar,
-                        'humidity_percent': st.session_state.fab_humidity_percent,
-                        'duration_minutes': st.session_state.fab_duration_minutes,
-                        'cooling_time_minutes': st.session_state.fab_cooling_time_minutes,
-                        'storage_days': st.session_state.fab_storage_days,
-                        'sample_orientation_in_box': st.session_state.fab_sample_orientation_in_box,
-                        'position_in_oven': st.session_state.fab_position_in_oven,
-                        'sample_weight_before_mg': st.session_state.fab_sample_weight_before_mg,
-                        'sample_weight_after_mg': st.session_state.fab_sample_weight_after_mg
-                    }
-                    csv_content = generate_tubefurnace_csv_content(common_data, specific_data)
-                
-                elif fab_method == "RTP":
-                    specific_data = {
-                        'pressure_mbar': st.session_state.fab_pressure_mbar,
-                        'box_type': st.session_state.fab_box_type,
-                        'amount_selenium_g': st.session_state.fab_amount_selenium_g,
-                        'amount_sulfur_g': st.session_state.fab_amount_sulfur_g,
-                        'steps': st.session_state.fab_steps,
-                        'recipe': st.session_state.fab_recipe,
-                        'rampe_K_per_second': st.session_state.fab_rampe_K_per_second,
-                        'holding_time_minutes': st.session_state.fab_holding_time_minutes,
-                        'sample_weight_before_mg': st.session_state.fab_sample_weight_before_mg,
-                        'sample_weight_after_mg': st.session_state.fab_sample_weight_after_mg,
-                        'orientation': st.session_state.fab_orientation
-                    }
-                    csv_content = generate_rtp_csv_content(common_data, specific_data)
-                
-                elif fab_method == "PLD":
-                    specific_data = {
-                        'pre_shots': st.session_state.pre_shots,
-                        'pre_laser_frequency_hz': st.session_state.pre_laser_frequency_hz,
-                        'pre_laser_fluence': st.session_state.pre_laser_fluence,
-                        'pre_gas_pressure_mbar': st.session_state.pre_gas_pressure_mbar,
-                        'pre_gas_type': st.session_state.pre_gas_type,
-                        'pre_duration_minutes': st.session_state.pre_duration_minutes,
-                        'temperature_C': st.session_state.fab_temperature_C,
-                        'shots': st.session_state.fab_shots,
-                        'laser_frequency_hz': st.session_state.fab_laser_frequency_hz,
-                        'laser_fluence': st.session_state.fab_laser_fluence,
-                        'gas_pressure_mbar': st.session_state.fab_gas_pressure_mbar,
-                        'gas_type': st.session_state.fab_gas_type,
-                        'duration_minutes': st.session_state.fab_duration_minutes
-                    }
-                    csv_content = generate_pld_csv_content(common_data, specific_data)
-                
-                filename = generate_fabrication_filename(
-                    st.session_state.fab_sample_number,
-                    st.session_state.fab_institution,
-                    st.session_state.fab_operator,
-                    st.session_state.fab_sequence,
-                    fab_method
-                )
-                
-                st.success("CSV file generated successfully")
-                
-                st.download_button(
-                    label="Download CSV File",
-                    data=csv_content,
-                    file_name=filename,
-                    mime="text/csv"
-                )
-                
-                with st.expander("Preview CSV Content"):
-                    st.text(csv_content)
-
+                    
+                    csv_content = ""
+                    
+                    if fab_method == "PVD-J":
+                        specific_data = {
+                            'process_number': st.session_state.fab_process_number,
+                            'recipe_name': st.session_state.fab_recipe_name,
+                            'box_type': st.session_state.fab_box_type,
+                            'duration_minutes': st.session_state.fab_duration_minutes,
+                            'substrate_temperature_celsius': st.session_state.fab_substrate_temperature_celsius,
+                            'cooling_temperature_celsius': st.session_state.fab_cooling_temperature_celsius,
+                            'holding_time_seconds': st.session_state.fab_holding_time_seconds,
+                            'rate_nmol_per_cm2_per_sec': st.session_state.fab_rate_nmol_per_cm2_per_sec,
+                            'power_W': st.session_state.fab_power_W,
+                            'tooling_factor': st.session_state.fab_tooling_factor,
+                            'xtal': st.session_state.fab_xtal,
+                            'sample_orientation': st.session_state.fab_sample_orientation,
+                            'sample_mass_before_mg': st.session_state.fab_sample_mass_before_mg,
+                            'sample_mass_after_mg': st.session_state.fab_sample_mass_after_mg
+                        }
+                        csv_content = generate_pvdj_csv_content(common_data, specific_data)
+                    
+                    elif fab_method == "Sputtering":
+                        specific_data = {
+                            'program': st.session_state.fab_program,
+                            'duration_minutes': st.session_state.fab_duration_minutes,
+                            'power_W': st.session_state.fab_power_W,
+                            'current_A': st.session_state.fab_current_A,
+                            'voltage_V': st.session_state.fab_voltage_V,
+                            'gas_mix': st.session_state.fab_gas_mix,
+                            'process_pressure_mbar': st.session_state.fab_process_pressure_mbar,
+                            'pre_fab_pressure': st.session_state.fab_pre_fab_pressure,
+                            'note': st.session_state.fab_note
+                        }
+                        csv_content = generate_sputtering_csv_content(common_data, specific_data)
+                    
+                    elif fab_method == "Tube Furnace":
+                        specific_data = {
+                            'temperature_celsius': st.session_state.fab_temperature_celsius,
+                            'rample_celsius_per_min': st.session_state.fab_rample_celsius_per_min,
+                            'amount_selenium_g': st.session_state.fab_amount_selenium_g,
+                            'amount_sulfur_g': st.session_state.fab_amount_sulfur_g,
+                            'pressure_mbar': st.session_state.fab_pressure_mbar,
+                            'humidity_percent': st.session_state.fab_humidity_percent,
+                            'duration_minutes': st.session_state.fab_duration_minutes,
+                            'cooling_time_minutes': st.session_state.fab_cooling_time_minutes,
+                            'storage_days': st.session_state.fab_storage_days,
+                            'sample_orientation_in_box': st.session_state.fab_sample_orientation_in_box,
+                            'position_in_oven': st.session_state.fab_position_in_oven,
+                            'sample_weight_before_mg': st.session_state.fab_sample_weight_before_mg,
+                            'sample_weight_after_mg': st.session_state.fab_sample_weight_after_mg
+                        }
+                        csv_content = generate_tubefurnace_csv_content(common_data, specific_data)
+                    
+                    elif fab_method == "RTP":
+                        specific_data = {
+                            'pressure_mbar': st.session_state.fab_pressure_mbar,
+                            'box_type': st.session_state.fab_box_type,
+                            'amount_selenium_g': st.session_state.fab_amount_selenium_g,
+                            'amount_sulfur_g': st.session_state.fab_amount_sulfur_g,
+                            'steps': st.session_state.fab_steps,
+                            'recipe': st.session_state.fab_recipe,
+                            'rampe_K_per_second': st.session_state.fab_rampe_K_per_second,
+                            'holding_time_minutes': st.session_state.fab_holding_time_minutes,
+                            'sample_weight_before_mg': st.session_state.fab_sample_weight_before_mg,
+                            'sample_weight_after_mg': st.session_state.fab_sample_weight_after_mg,
+                            'orientation': st.session_state.fab_orientation
+                        }
+                        csv_content = generate_rtp_csv_content(common_data, specific_data)
+                    
+                    elif fab_method == "PLD":
+                        specific_data = {
+                            'pre_shots': st.session_state.pre_shots,
+                            'pre_laser_frequency_hz': st.session_state.pre_laser_frequency_hz,
+                            'pre_laser_fluence': st.session_state.pre_laser_fluence,
+                            'pre_gas_pressure_mbar': st.session_state.pre_gas_pressure_mbar,
+                            'pre_gas_type': st.session_state.pre_gas_type,
+                            'pre_duration_minutes': st.session_state.pre_duration_minutes,
+                            'temperature_C': st.session_state.fab_temperature_C,
+                            'shots': st.session_state.fab_shots,
+                            'laser_frequency_hz': st.session_state.fab_laser_frequency_hz,
+                            'laser_fluence': st.session_state.fab_laser_fluence,
+                            'gas_pressure_mbar': st.session_state.fab_gas_pressure_mbar,
+                            'gas_type': st.session_state.fab_gas_type,
+                            'duration_minutes': st.session_state.fab_duration_minutes
+                        }
+                        csv_content = generate_pld_csv_content(common_data, specific_data)
+                    
+                    filename = generate_fabrication_filename(
+                        st.session_state.fab_sample_number,
+                        st.session_state.fab_institution,
+                        st.session_state.fab_operator,
+                        st.session_state.fab_sequence,
+                        fab_method
+                    )
+                    
+                    st.success("CSV file generated successfully")
+                    
+                    st.download_button(
+                        label="Download CSV File",
+                        data=csv_content,
+                        file_name=filename,
+                        mime="text/csv"
+                    )
+                    
+                    with st.expander("Preview CSV Content"):
+                        st.text(csv_content)
 
 
 with tab3:
@@ -762,7 +869,7 @@ with tab3:
     # Set common default values
     st.session_state.treat_sample_number = st.session_state.get('treat_sample_number', "3716-15")
     st.session_state.treat_institution = st.session_state.get('treat_institution', "HZB")
-    st.session_state.treat_operator = st.session_state.get('treat_operator', "Lars Drescher")
+    st.session_state.treat_operator = st.session_state.get('treat_operator', "Dong Nguyen")
     
     # Set sequence based on method
     if treat_method == "As-deposited":
@@ -849,7 +956,7 @@ with tab3:
         treat_pressure = st.text_input("Pressure (mbar)", value=default_pressure, key="treat_press_input")
     
     if treat_method == "As-deposited":
-        st.info(" As-deposited represents samples without post-deposition treatment (sequence is always 0). Environmental parameters can be left at default/ambient values.")
+        st.info("As-deposited represents samples without post-deposition treatment (sequence is always 0). Environmental parameters can be left at default/ambient values.")
     
     st.divider()
     
@@ -914,5 +1021,331 @@ with tab3:
                 )
                 
                 with st.expander("Preview CSV Content"):
-
                     st.text(csv_content)
+
+
+with tab4:
+    # Initialize session state
+    if 'processed_data' not in st.session_state:
+        st.session_state.processed_data = None
+    
+    st.markdown("Process and combine SPX files with XRF Excel data for multiple layers")
+    st.markdown("---")
+    
+    # Metadata section
+    metadata_dict = render_metadata_section()
+    
+    # File input section
+    st.subheader("Input Files")
+    
+    st.markdown("##### XRF Data (Excel)")
+    xrf_excel_file = st.file_uploader("Upload XRF Excel File", 
+                                      type=["xls", "xlsx"],
+                                      help="Upload the XRF analysis results Excel file")
+    
+    if xrf_excel_file is not None:
+        st.success(f"Uploaded: {xrf_excel_file.name}")
+        
+        try:
+            # Extract and detect layers
+            layers_info = extract_xrf_excel_data(xrf_excel_file)
+            
+            st.session_state.layers_info = layers_info
+
+            # Display all layers information
+            st.markdown("##### Available Layers")
+
+            for layer_key, layer_df in layers_info['layers'].items():
+                with st.expander(f"{layer_key.capitalize()} - {len(layer_df)} measurements"):
+                    st.dataframe(layer_df, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Layer selection
+            st.subheader("Select Layer to Combine XRF and SPX")
+            layer_options = list(layers_info['layers'].keys())
+            selected_layer = st.selectbox(
+                "Choose which layer to combine with SPX files",
+                layer_options,
+                format_func=lambda x: x.capitalize()
+            )
+            
+            # Get selected layer data
+            xrf_df = layers_info['layers'][selected_layer]
+            
+            # SPX folder input
+            st.markdown("##### SPX Files")
+            spx_folder_path = st.text_input(
+                f"SPX Folder Path for {selected_layer.upper()}", 
+                value=r"D:\High-throughput program\Mongo DB\ver10-newstructure\Full data\SPX", 
+                placeholder=f"/path/to/{selected_layer}/spx/files"
+            )
+            
+            if spx_folder_path:
+                spx_folder = Path(spx_folder_path)
+                if spx_folder.exists() and spx_folder.is_dir():
+                    spx_files = sorted(spx_folder.glob('*.spx'))
+                    if spx_files:
+                        st.success(f"Found {len(spx_files)} SPX files")
+                    else:
+                        st.warning("No SPX files found")
+                else:
+                    st.error("Invalid folder path")
+            
+            # Process button
+            if st.button("Combine XRF and SPX", type="primary"):
+                if not st.session_state.operator_valid:
+                    st.error("Please fix the operator name before processing")
+                elif not spx_folder_path:
+                    st.error("Please provide SPX folder path")
+                else:
+                    spx_folder = Path(spx_folder_path)
+                    
+                    if not spx_folder.exists():
+                        st.error("SPX folder path is invalid")
+                    else:
+                        spx_files = sorted(spx_folder.glob('*.spx'))
+                        
+                        if len(spx_files) == 0:
+                            st.error("No SPX files found in folder")
+                        else:
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            
+                            try:
+                                # Process SPX files
+                                status_text.text(f"Processing SPX files for {selected_layer}...")
+                                spx_data_list = []
+                                
+                                for i, spx_file in enumerate(spx_files):
+                                    spx_data = parse_spx_file(spx_file)
+                                    spx_data_list.append(spx_data)
+                                    progress_bar.progress((i + 1) / (len(spx_files) + 1))
+                                
+                                # Process XRF data
+                                xrf_data_list = parse_xrf_excel_to_dict(xrf_df, selected_layer)
+                                
+                                progress_bar.progress(1.0)
+                                
+                                # Match files
+                                status_text.text(f"Matching SPX and XRF files for {selected_layer}...")
+                                combined_data = match_spx_with_xrf_excel(
+                                    spx_data_list, xrf_data_list, selected_layer
+                                )
+                                
+                                # Create metadata
+                                metadata = {
+                                    'sample_id': metadata_dict['sample_id'],
+                                    'substrate': metadata_dict['substrate'],
+                                    'sample_description': metadata_dict['sample_description'],
+                                    'sample_size': metadata_dict['sample_size'],
+                                    'fabrication_method': metadata_dict['fabrication_method'],
+                                    'treatment_method': metadata_dict['treatment_method'],
+                                    'treatment_sequence': metadata_dict['treatment_sequence'],
+                                    'air_exposure_duration': metadata_dict['air_exposure_duration'],
+                                    'operator': metadata_dict['operator'],
+                                    'institution': metadata_dict['institution'],
+                                    'measurement_type': metadata_dict['measurement_type'],
+                                    'spectrometer': 'Bruker M4 Tornado',
+                                    'total_layers': st.session_state.layers_info['num_layers'],
+                                }
+                                
+                                # Generate CSV
+                                csv_content = create_combined_csv(
+                                    combined_data, metadata, None, selected_layer
+                                )
+                                
+                                # Generate filename
+                                created_date = datetime.now().strftime("%Y%m%d")
+                                created_time = datetime.now().strftime("%H%M%S")
+                                csv_filename = f"{metadata_dict['sample_id']}_{metadata_dict['institution']}_{metadata_dict['operator'].replace(' ', '_')}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_mapping_xrf_{selected_layer}_{created_date}_{created_time}.csv"
+                                
+                                # Store results
+                                st.session_state.processed_data = {
+                                    selected_layer: {
+                                        'combined_data': combined_data,
+                                        'csv_content': csv_content,
+                                        'csv_filename': csv_filename,
+                                        'metadata': metadata,
+                                        'xrf_df': xrf_df
+                                    }
+                                }
+
+                                st.session_state.current_metadata = metadata
+
+                                status_text.empty()
+                                progress_bar.empty()
+                                
+                                matched_count = sum(1 for d in combined_data if d['matched'])
+                                st.success(f"Processed {len(combined_data)} files successfully! ({matched_count} matched)")
+                                
+                            except Exception as e:
+                                st.error(f"Error: {str(e)}")
+                                import traceback
+                                st.code(traceback.format_exc())
+        
+        except Exception as e:
+            st.error(f"Error reading XRF file: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+    
+    # Display results
+    if st.session_state.processed_data is not None:
+        all_results = st.session_state.processed_data
+        
+        for layer_name, processed in all_results.items():
+            st.markdown(f"##### {layer_name.upper()}")
+            with st.expander("XRF Excel Data & Combined Data Table", expanded=False):
+                
+                combined_data = processed['combined_data']
+                
+                # Summary statistics
+                col1, col2, col3, col4 = st.columns(4)
+                
+                matched_count = sum(1 for d in combined_data if d['matched'])
+                
+                with col1:
+                    st.metric("Total SPX Files", len(combined_data))
+                with col2:
+                    st.metric("Matched with XRF", matched_count)
+                with col3:
+                    avg_thickness = np.mean([d['thickness_nm'] for d in combined_data 
+                                            if d['thickness_nm'] is not None])
+                    st.metric("Avg Thickness (nm)", f"{avg_thickness:.1f}" if not np.isnan(avg_thickness) else "N/A")
+                with col4:
+                    st.metric("Match Rate", f"{matched_count/len(combined_data)*100:.0f}%")
+                
+                # Display XRF data
+                st.markdown("#### XRF Excel Data")
+                st.dataframe(processed['xrf_df'], use_container_width=True, height=300)
+                
+                # Data table
+                st.markdown("#### Combined Data Table")
+                
+                df_display = pd.DataFrame([{
+                    'SPX Name': d['spx_name'],
+                    'XRF Spectrum': d['xrf_spectrum_name'] if d['xrf_spectrum_name'] else 'N/A',
+                    'X (mm)': f"{d['x_position_mm']:.3f}" if d['x_position_mm'] else 'N/A',
+                    'Y (mm)': f"{d['y_position_mm']:.3f}" if d['y_position_mm'] else 'N/A',
+                    'Z (mm)': f"{d['z_position_mm']:.3f}" if d['z_position_mm'] else 'N/A',
+                    'Thickness (nm)': f"{d['thickness_nm']:.2f}" if d['thickness_nm'] is not None else 'N/A',
+                    'Date': d['date'],
+                    'Time': d['time'],
+                    'Matched': 'Yes' if d['matched'] else 'No',
+                } for d in combined_data])
+                
+                st.dataframe(df_display, use_container_width=True, height=400, hide_index=True)
+                
+                # Spectrum viewer
+                st.markdown("#### Spectrum Viewer")
+                
+                if combined_data:
+                    selected_file = st.selectbox(
+                        "Select file to view spectrum",
+                        [d['spx_name'] for d in combined_data],
+                        index=0,
+                        key=f"spectrum_select_{layer_name}"
+                    )
+                    
+                    selected_data = next(d for d in combined_data if d['spx_name'] == selected_file)
+                    
+                    # Show metadata
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.info(f"**Position:** ({selected_data['x_position_mm']:.3f}, {selected_data['y_position_mm']:.3f}) mm")
+                    with col2:
+                        st.info(f"**Thickness:** {selected_data['thickness_nm']:.2f} nm" if selected_data['thickness_nm'] else "**Thickness:** N/A")
+                    with col3:
+                        st.info(f"**Matched:** {'Yes' if selected_data['matched'] else 'No'}")
+                    
+                    fig = plot_spectrum(selected_data, f"Spectrum: {selected_file}")
+                    st.plotly_chart(fig, use_container_width=True)
+                
+            # ====================Download button for CSV fies with original xyz position in XRF measurement===================
+            st.markdown("---")
+            st.markdown("#### Download CSV")
+            st.download_button(
+                label=f"Download CSV File - {layer_name.upper()}",
+                data=processed['csv_content'],
+                file_name=processed['csv_filename'],
+                mime="text/csv",
+                key=f"download_{layer_name}"
+            )
+
+
+            # Coordinate conversion section (add after Download CSV button)
+            st.markdown("---")
+            st.subheader("Converting Coordinates: XRF Meaurement to Optical Mesurement")
+            
+            xrf_bounds = extract_xrf_bounds(combined_data)
+            
+            if xrf_bounds is None:
+                st.error("Could not extract XRF coordinate bounds from the data")
+            else:
+                st.success("XRF coordinate bounds extracted from files")
+                
+                col_left, col_right = st.columns(2)
+                
+                with col_left:
+                    st.markdown("##### XRF Measurement Coordinates")
+                    st.info(f"""
+                    **First point (x1, y1):** ({xrf_bounds['x_1']:.3f}, {xrf_bounds['y_1']:.3f}) mm  
+                    **Last point (x2, y2):** ({xrf_bounds['x_2']:.3f}, {xrf_bounds['y_2']:.3f}) mm
+                    """)
+                
+                with col_right:
+                    st.markdown("##### Optical Measurement Coordinates")
+                    col5, col6 = st.columns(2)
+                    x_1_opt = col5.number_input("x1 (mm)", value=5.0, format="%.3f", key=f"opt_x1_{layer_name}")
+                    y_1_opt = col6.number_input("y1 (mm)", value=5.0, format="%.3f", key=f"opt_y1_{layer_name}")
+                    col7, col8 = st.columns(2)
+                    x_2_opt = col7.number_input("x2 (mm)", value=45.0, format="%.3f", key=f"opt_x2_{layer_name}")
+                    y_2_opt = col8.number_input("y2 (mm)", value=45.0, format="%.3f", key=f"opt_y2_{layer_name}")
+                
+                optical_bounds = {
+                    'x_1': x_1_opt, 'y_1': y_1_opt,
+                    'x_2': x_2_opt, 'y_2': y_2_opt
+                }
+                
+                if st.button("Convert Coordinates", type="primary", key=f"convert_{layer_name}"):
+                    converted_data_result = convert_xrf_to_optical(
+                        combined_data, xrf_bounds, optical_bounds
+                    )
+                    
+                    st.session_state[f'converted_data_{layer_name}'] = converted_data_result
+                    st.success(f"Converted {len(converted_data_result)} coordinates successfully!")
+                
+                if f'converted_data_{layer_name}' in st.session_state:
+                    converted_data_result = st.session_state[f'converted_data_{layer_name}']
+                    
+                    # Visualization
+                    st.markdown("---")
+                    fig = plot_coordinate_comparison(xrf_bounds, optical_bounds, converted_data_result)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Export with converted coordinates
+                    st.markdown("---")
+                    st.subheader("Download CSV with Converted Coordinates")
+                    
+                    # Get metadata from session state or from processed data
+                    if 'current_metadata' in st.session_state:
+                        metadata = st.session_state.current_metadata
+                    else:
+                        metadata = processed['metadata']
+                    
+                    csv_content_converted = create_combined_csv(
+                        combined_data, metadata, converted_data_result, layer_name
+                    )
+                    
+                    created_date = datetime.now().strftime("%Y%m%d")
+                    created_time = datetime.now().strftime("%H%M%S")
+                    csv_filename_converted = f"{metadata['sample_id']}_{metadata['institution']}_{metadata['operator'].replace(' ', '_')}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_mapping_xrf_{layer_name}_{created_date}_{created_time}.csv"
+                    
+                    st.download_button(
+                        label="Download CSV File",
+                        data=csv_content_converted,
+                        file_name=csv_filename_converted,
+                        mime="text/csv",
+                        type="primary",
+                        key=f"download_optical_{layer_name}"
+                    )
