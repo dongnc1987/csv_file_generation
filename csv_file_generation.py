@@ -1027,12 +1027,16 @@ with tab3:
                 st.session_state.treat_press_val = treat_pressure
                 
                 csv_content = generate_treatment_csv_content(common_data, specific_data)
-                
+                sequence_for_filename = "0" if treat_method == "As-deposited" else st.session_state.treat_sequence
+
+                sequence_for_filename = "0" if treat_method == "As-deposited" else st.session_state.treat_sequence
+
                 filename = generate_treatment_filename(
                     st.session_state.treat_sample_number,
                     st.session_state.treat_institution,
                     st.session_state.treat_operator,
                     st.session_state.treat_sequence,
+                    sequence_for_filename,
                     treat_method
                 )
                 
@@ -1408,3 +1412,4 @@ with tab4:
                         key=f"tab4_download_optical_{layer_name}"
 
                     )
+
