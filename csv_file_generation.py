@@ -1035,7 +1035,6 @@ with tab3:
                     st.session_state.treat_sample_number,
                     st.session_state.treat_institution,
                     st.session_state.treat_operator,
-                    st.session_state.treat_sequence,
                     sequence_for_filename,
                     treat_method
                 )
@@ -1412,4 +1411,5 @@ with tab4:
                         key=f"tab4_download_optical_{layer_name}"
 
                     )
+
 
