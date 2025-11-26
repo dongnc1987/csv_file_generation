@@ -339,7 +339,7 @@ with tab1:
     # Set default values
     st.session_state.sub_sample_number = st.session_state.get('sub_sample_number', "3716-15")
     st.session_state.sub_institution = st.session_state.get('sub_institution', "HZB")
-    st.session_state.sub_operator = st.session_state.get('sub_operator', "Dong Nguyen")
+    st.session_state.sub_operator = st.session_state.get('sub_operator', "Lars Steinkopf")
     st.session_state.sub_substrate_type = st.session_state.get('sub_substrate_type', "quartz")
     st.session_state.sub_thickness = st.session_state.get('sub_thickness', "1.1")
     st.session_state.sub_size = st.session_state.get('sub_size', "50.8x50.8")
@@ -401,7 +401,7 @@ with tab1:
         if not st.session_state.sub_sample_number or not st.session_state.sub_institution or not st.session_state.sub_operator or not st.session_state.sub_substrate_type:
             st.error("Please fill in all required fields: Sample Number, Institution, Operator, and Substrate Type")
         elif not validate_operator_name(st.session_state.sub_operator):
-            st.error("Operator must include both First Name and Last Name (e.g., Dong Nguyen)")
+            st.error("Operator must include both First Name and Last Name (e.g., Lars Steinkopf)")
         else:
             date_formatted = format_date(st.session_state.sub_clean_date)
             time_formatted = convert_time_to_12hour(st.session_state.sub_clean_time)
@@ -894,7 +894,7 @@ with tab3:
     # Set common default values
     st.session_state.treat_sample_number = st.session_state.get('treat_sample_number', "3716-15")
     st.session_state.treat_institution = st.session_state.get('treat_institution', "HZB")
-    st.session_state.treat_operator = st.session_state.get('treat_operator', "Dong Nguyen")
+    st.session_state.treat_operator = st.session_state.get('treat_operator', "Lars Steinkopf")
     
     # Set sequence based on method
     if treat_method == "As-deposited":
@@ -1406,4 +1406,5 @@ with tab4:
                         mime="text/csv",
                         type="primary",
                         key=f"tab4_download_optical_{layer_name}"
+
                     )
