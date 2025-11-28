@@ -10,6 +10,8 @@ import base64
 import struct
 from typing import Dict, List, Tuple, Optional
 
+st.set_page_config(page_title="SPX & XRF Data Integration", layout="wide")
+
 # ============================================================================
 # CONSTANTS
 # ============================================================================
@@ -233,46 +235,31 @@ def parse_spx_file(file_path: Path) -> Dict:
 # ============================================================================
 
 def extract_xrf_excel_data(uploaded_file) -> Dict:
-    """
-    Extract XRF data from Excel file and detect multiple layers
-    Handles multi-level headers where layer names are on one row and column names below
-    Returns dictionary with layer information and dataframes
-    """
     df = pd.read_excel(uploaded_file, header=None)
     
-    # Find header rows
+    # Find header rows - look for "Spectrum" 
     layer_header_row = None
     column_header_row = None
-    spectrum_col_row = None
     
-    # Find row with "Spectrum" and layer information
     for idx, row in df.iterrows():
         row_str = ' '.join([str(x) for x in row.values if pd.notna(x)])
         if "Spectrum" in row_str:
-            if "Layer" in row_str or any("Thickn" in str(x) for x in row.values):
-                # This might be layer header or column header
-                if "Layer" in row_str:
-                    layer_header_row = idx
-                else:
-                    column_header_row = idx
-                    spectrum_col_row = idx
-            elif spectrum_col_row is None:
-                spectrum_col_row = idx
-    
-    # If layer names are in a separate row above column names
-    if layer_header_row is not None and column_header_row is None:
-        column_header_row = layer_header_row + 1
-    elif layer_header_row is None and column_header_row is not None:
-        layer_header_row = column_header_row - 1
-    elif layer_header_row is None and column_header_row is None:
-        # Single row header
-        layer_header_row = spectrum_col_row
-        column_header_row = spectrum_col_row
+            column_header_row = idx
+            # Check if layer info is in row above
+            if idx > 0:
+                prev_row_str = ' '.join([str(x) for x in df.iloc[idx-1].values if pd.notna(x)])
+                if "Layer" in prev_row_str:
+                    layer_header_row = idx - 1
+            break
     
     if column_header_row is None:
-        raise ValueError("Could not find header rows in Excel file")
+        raise ValueError("Could not find header rows with 'Spectrum' column in Excel file")
     
-    # Extract layer names and build column structure
+    # If no separate layer header row found, use column header row
+    if layer_header_row is None:
+        layer_header_row = column_header_row
+    
+    # Extract layer names and column names
     layer_row = df.iloc[layer_header_row].values
     column_row = df.iloc[column_header_row].values
     
@@ -283,38 +270,52 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
     
     for idx, (layer_name, col_name) in enumerate(zip(layer_row, column_row)):
         # Check if this is the Spectrum column
-        if "Spectrum" in str(col_name):
+        if pd.notna(col_name) and "Spectrum" in str(col_name):
             spectrum_idx = idx
             continue
         
-        # Detect layer change
+        # Skip if column name is NaN
+        if pd.isna(col_name):
+            continue
+        
+        col_name_str = str(col_name).strip()
+        
+        # Detect layer change from layer_row
         if pd.notna(layer_name) and "Layer" in str(layer_name):
             layer_num = str(layer_name).replace("Layer", "").strip()
             current_layer = f"layer{layer_num}"
             if current_layer not in layers_columns:
                 layers_columns[current_layer] = []
         
+        # Skip substrate/base columns (Si [%], O [%], etc.)
+        if col_name_str.lower() in ["si [%]", "o [%]", "substrate", "base"]:
+            continue
+        
         # Add column to current layer
-        if current_layer is not None and pd.notna(col_name):
-            col_name_str = str(col_name).strip()
-            if col_name_str and col_name_str != 'nan':
-                # Create unique column name by adding layer prefix
-                unique_col_name = f"{current_layer}_{col_name_str}"
-                layers_columns[current_layer].append((idx, col_name_str, unique_col_name))
+        if current_layer is not None and col_name_str:
+            layers_columns[current_layer].append((idx, col_name_str))
     
     if spectrum_idx is None:
         raise ValueError("Could not find Spectrum column")
+    
+    if len(layers_columns) == 0:
+        raise ValueError("No layers found in Excel file")
     
     # Extract data starting from the row after column headers
     data_start_row = column_header_row + 1
     data_df = df.iloc[data_start_row:].reset_index(drop=True)
     
-    # Filter valid data rows (Grid measurements)
+    # Filter valid data rows - keep all .spx files or Grid entries
     if len(data_df) > 0:
         spectrum_data = data_df.iloc[:, spectrum_idx].astype(str)
-        valid_rows = spectrum_data.str.startswith("Grid", na=False)
-        valid_rows = valid_rows & ~spectrum_data.str.contains("Mean|Std|Grid_0", na=False)
+        # Keep rows that have .spx or Grid in filename
+        valid_rows = spectrum_data.str.contains(".spx|Grid", na=False, case=False)
+        # Exclude summary rows (Mean, Std, Average)
+        valid_rows = valid_rows & ~spectrum_data.str.contains("Mean|Std|Average", na=False, case=True)
         data_df = data_df[valid_rows].reset_index(drop=True)
+    
+    if len(data_df) == 0:
+        raise ValueError("No valid spectrum data found in Excel file")
     
     # Create separate dataframe for each layer
     layers_data = {}
@@ -328,7 +329,7 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
             'Spectrum': data_df.iloc[:, spectrum_idx]
         }
         
-        for col_idx, original_name, unique_name in columns_info:
+        for col_idx, original_name in columns_info:
             layer_df_data[original_name] = data_df.iloc[:, col_idx]
         
         # Create dataframe
@@ -426,9 +427,12 @@ def compare_spectra_correlation(spectrum1: np.ndarray, spectrum2: np.ndarray) ->
         return 0.0
 
 def match_spx_with_xrf_excel(spx_data_list: List[Dict], xrf_data_list: List[Dict], 
-                                        layer_name: str) -> List[Dict]:
+                             layer_name: str) -> List[Dict]:
     """
     Match SPX files with XRF Excel data for a specific layer
+    Handles different filename formats:
+    - Grid_1_001 (from multilayer file)
+    - 4037-7 73.spx (from single layer file)
     """
     combined_data = []
     
@@ -437,22 +441,36 @@ def match_spx_with_xrf_excel(spx_data_list: List[Dict], xrf_data_list: List[Dict
     
     for spx_data in spx_data_list:
         spx_name = spx_data['file_name']
-        spx_base = Path(spx_name).stem
+        spx_base = Path(spx_name).stem  # Remove .spx extension
         
         # Try to find match
         xrf_match = None
         match_method = None
         correlation = 0.0
         
-        # Method 1: Direct name match
+        # Method 1: Direct name match (exact match)
         for xrf_name in xrf_lookup.keys():
-            if spx_base in xrf_name or xrf_name in spx_base:
+            xrf_base = Path(xrf_name).stem if '.spx' in xrf_name else xrf_name
+            if spx_base == xrf_base:
                 xrf_match = xrf_lookup[xrf_name]
-                match_method = "name"
+                match_method = "exact_name"
                 correlation = 1.0
                 break
         
-        # Method 2: Extract Grid number from SPX filename
+        # Method 2: Partial name match
+        if xrf_match is None:
+            for xrf_name in xrf_lookup.keys():
+                # Clean both names for comparison
+                spx_clean = spx_base.replace('-', '').replace('_', '').replace(' ', '').lower()
+                xrf_clean = xrf_name.replace('-', '').replace('_', '').replace(' ', '').replace('.spx', '').lower()
+                
+                if spx_clean in xrf_clean or xrf_clean in spx_clean:
+                    xrf_match = xrf_lookup[xrf_name]
+                    match_method = "partial_name"
+                    correlation = 1.0
+                    break
+        
+        # Method 3: Extract Grid number (for Grid_1_001 format)
         if xrf_match is None:
             import re
             grid_match = re.search(r'Grid[_\s]*(\d+)', spx_base, re.IGNORECASE)
@@ -462,6 +480,21 @@ def match_spx_with_xrf_excel(spx_data_list: List[Dict], xrf_data_list: List[Dict
                     if grid_num in xrf_name:
                         xrf_match = xrf_lookup[xrf_name]
                         match_method = "grid_number"
+                        correlation = 1.0
+                        break
+        
+        # Method 4: Extract number at end (for "4037-7 73.spx" format)
+        if xrf_match is None:
+            import re
+            # Look for numbers at the end of filename
+            num_match = re.search(r'(\d+)\s*$', spx_base)
+            if num_match:
+                file_num = num_match.group(1)
+                for xrf_name in xrf_lookup.keys():
+                    # Check if XRF name contains this number
+                    if file_num in xrf_name:
+                        xrf_match = xrf_lookup[xrf_name]
+                        match_method = "number_match"
                         correlation = 1.0
                         break
         
@@ -980,3 +1013,338 @@ def render_layer_selection_ui(layers_info: Dict):
         }
     
     return layer_inputs
+
+
+# ============================================================================
+# MAIN APPLICATION
+# ============================================================================
+
+def main():
+    # Initialize session state
+    if 'processed_data' not in st.session_state:
+        st.session_state.processed_data = None
+    
+    st.title("SPX & XRF Data Integration System - Multilayer Support")
+    st.markdown("Process and combine SPX files with XRF Excel data for multiple layers")
+    st.markdown("---")
+    
+    # Metadata section
+    metadata_dict = render_metadata_section()
+    
+    # File input section
+    st.subheader("Input Files")
+    
+    st.markdown("##### XRF Data (Excel)")
+    xrf_excel_file = st.file_uploader("Upload XRF Excel File", 
+                                      type=["xls", "xlsx"],
+                                      help="Upload the XRF analysis results Excel file")
+    
+    if xrf_excel_file is not None:
+        st.success(f"Uploaded: {xrf_excel_file.name}")
+        
+        try:
+            # Extract and detect layers
+            layers_info = extract_xrf_excel_data(xrf_excel_file)
+            
+            st.session_state.layers_info = layers_info
+
+            # Display all layers information
+            st.markdown("##### Available Layers")
+
+            for layer_key, layer_df in layers_info['layers'].items():
+                with st.expander(f"{layer_key.capitalize()} - {len(layer_df)} measurements"):
+                    st.dataframe(layer_df, use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Layer selection
+            st.subheader("Select Layer to Combine XRF and SPX")
+            layer_options = list(layers_info['layers'].keys())
+            selected_layer = st.selectbox(
+                "Choose which layer to combine with SPX files",
+                layer_options,
+                format_func=lambda x: x.capitalize()
+            )
+            
+            # Get selected layer data
+            xrf_df = layers_info['layers'][selected_layer]
+            
+            # SPX folder input
+            st.markdown("##### SPX Files")
+            spx_folder_path = st.text_input(
+                f"SPX Folder Path for {selected_layer.upper()}", 
+                value=r"D:\High-throughput program\Mongo DB\ver10-newstructure\Full data\SPX", 
+                placeholder=f"/path/to/{selected_layer}/spx/files"
+            )
+            
+            if spx_folder_path:
+                spx_folder = Path(spx_folder_path)
+                if spx_folder.exists() and spx_folder.is_dir():
+                    spx_files = sorted(spx_folder.glob('*.spx'))
+                    if spx_files:
+                        st.success(f"Found {len(spx_files)} SPX files")
+                    else:
+                        st.warning("No SPX files found")
+                else:
+                    st.error("Invalid folder path")
+            
+            # Process button
+            if st.button("Combine XRF and SPX", type="primary"):
+                if not st.session_state.operator_valid:
+                    st.error("Please fix the operator name before processing")
+                elif not spx_folder_path:
+                    st.error("Please provide SPX folder path")
+                else:
+                    spx_folder = Path(spx_folder_path)
+                    
+                    if not spx_folder.exists():
+                        st.error("SPX folder path is invalid")
+                    else:
+                        spx_files = sorted(spx_folder.glob('*.spx'))
+                        
+                        if len(spx_files) == 0:
+                            st.error("No SPX files found in folder")
+                        else:
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            
+                            try:
+                                # Process SPX files
+                                status_text.text(f"Processing SPX files for {selected_layer}...")
+                                spx_data_list = []
+                                
+                                for i, spx_file in enumerate(spx_files):
+                                    spx_data = parse_spx_file(spx_file)
+                                    spx_data_list.append(spx_data)
+                                    progress_bar.progress((i + 1) / (len(spx_files) + 1))
+                                
+                                # Process XRF data
+                                xrf_data_list = parse_xrf_excel_to_dict(xrf_df, selected_layer)
+                                
+                                progress_bar.progress(1.0)
+                                
+                                # Match files
+                                status_text.text(f"Matching SPX and XRF files for {selected_layer}...")
+                                combined_data = match_spx_with_xrf_excel(
+                                    spx_data_list, xrf_data_list, selected_layer
+                                )
+                                
+                                # Create metadata
+                                metadata = {
+                                    'sample_id': metadata_dict['sample_id'],
+                                    'substrate': metadata_dict['substrate'],
+                                    'sample_description': metadata_dict['sample_description'],
+                                    'sample_size': metadata_dict['sample_size'],
+                                    'fabrication_method': metadata_dict['fabrication_method'],
+                                    'treatment_method': metadata_dict['treatment_method'],
+                                    'treatment_sequence': metadata_dict['treatment_sequence'],
+                                    'air_exposure_duration': metadata_dict['air_exposure_duration'],
+                                    'operator': metadata_dict['operator'],
+                                    'institution': metadata_dict['institution'],
+                                    'measurement_type': metadata_dict['measurement_type'],
+                                    'spectrometer': 'Bruker M4 Tornado',
+                                    'total_layers': st.session_state.layers_info['num_layers'],
+                                }
+                                
+                                # Generate CSV
+                                csv_content = create_combined_csv(
+                                    combined_data, metadata, None, selected_layer
+                                )
+                                
+                                # Generate filename
+                                created_date = datetime.now().strftime("%Y%m%d")
+                                created_time = datetime.now().strftime("%H%M%S")
+                                csv_filename = f"{metadata_dict['sample_id']}_{metadata_dict['institution']}_{metadata_dict['operator'].replace(' ', '_')}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_mapping_xrf_{selected_layer}_{created_date}_{created_time}.csv"
+                                
+                                # Store results
+                                st.session_state.processed_data = {
+                                    selected_layer: {
+                                        'combined_data': combined_data,
+                                        'csv_content': csv_content,
+                                        'csv_filename': csv_filename,
+                                        'metadata': metadata,
+                                        'xrf_df': xrf_df
+                                    }
+                                }
+
+                                st.session_state.current_metadata = metadata
+
+                                status_text.empty()
+                                progress_bar.empty()
+                                
+                                matched_count = sum(1 for d in combined_data if d['matched'])
+                                st.success(f"Processed {len(combined_data)} files successfully! ({matched_count} matched)")
+                                
+                            except Exception as e:
+                                st.error(f"Error: {str(e)}")
+                                import traceback
+                                st.code(traceback.format_exc())
+        
+        except Exception as e:
+            st.error(f"Error reading XRF file: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc())
+    
+    # Display results
+    if st.session_state.processed_data is not None:
+        all_results = st.session_state.processed_data
+        
+        for layer_name, processed in all_results.items():
+            st.markdown(f"##### {layer_name.upper()}")
+            with st.expander("XRF Excel Data & Combined Data Table", expanded=False):
+                
+                combined_data = processed['combined_data']
+                
+                # Summary statistics
+                col1, col2, col3, col4 = st.columns(4)
+                
+                matched_count = sum(1 for d in combined_data if d['matched'])
+                
+                with col1:
+                    st.metric("Total SPX Files", len(combined_data))
+                with col2:
+                    st.metric("Matched with XRF", matched_count)
+                with col3:
+                    avg_thickness = np.mean([d['thickness_nm'] for d in combined_data 
+                                            if d['thickness_nm'] is not None])
+                    st.metric("Avg Thickness (nm)", f"{avg_thickness:.1f}" if not np.isnan(avg_thickness) else "N/A")
+                with col4:
+                    st.metric("Match Rate", f"{matched_count/len(combined_data)*100:.0f}%")
+                
+                # Display XRF data
+                st.markdown("#### XRF Excel Data")
+                st.dataframe(processed['xrf_df'], use_container_width=True, height=300)
+                
+                # Data table
+                st.markdown("#### Combined Data Table")
+                
+                df_display = pd.DataFrame([{
+                    'SPX Name': d['spx_name'],
+                    'XRF Spectrum': d['xrf_spectrum_name'] if d['xrf_spectrum_name'] else 'N/A',
+                    'X (mm)': f"{d['x_position_mm']:.3f}" if d['x_position_mm'] else 'N/A',
+                    'Y (mm)': f"{d['y_position_mm']:.3f}" if d['y_position_mm'] else 'N/A',
+                    'Z (mm)': f"{d['z_position_mm']:.3f}" if d['z_position_mm'] else 'N/A',
+                    'Thickness (nm)': f"{d['thickness_nm']:.2f}" if d['thickness_nm'] is not None else 'N/A',
+                    'Date': d['date'],
+                    'Time': d['time'],
+                    'Matched': 'Yes' if d['matched'] else 'No',
+                } for d in combined_data])
+                
+                st.dataframe(df_display, use_container_width=True, height=400, hide_index=True)
+                
+                # Spectrum viewer
+                st.markdown("#### Spectrum Viewer")
+                
+                if combined_data:
+                    selected_file = st.selectbox(
+                        "Select file to view spectrum",
+                        [d['spx_name'] for d in combined_data],
+                        index=0,
+                        key=f"spectrum_select_{layer_name}"
+                    )
+                    
+                    selected_data = next(d for d in combined_data if d['spx_name'] == selected_file)
+                    
+                    # Show metadata
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.info(f"**Position:** ({selected_data['x_position_mm']:.3f}, {selected_data['y_position_mm']:.3f}) mm")
+                    with col2:
+                        st.info(f"**Thickness:** {selected_data['thickness_nm']:.2f} nm" if selected_data['thickness_nm'] else "**Thickness:** N/A")
+                    with col3:
+                        st.info(f"**Matched:** {'Yes' if selected_data['matched'] else 'No'}")
+                    
+                    fig = plot_spectrum(selected_data, f"Spectrum: {selected_file}")
+                    st.plotly_chart(fig, use_container_width=True)
+                
+            # ====================Download button for CSV fies with original xyz position in XRF measurement===================
+            st.markdown("---")
+            st.markdown("#### Download CSV")
+            st.download_button(
+                label=f"Download CSV File - {layer_name.upper()}",
+                data=processed['csv_content'],
+                file_name=processed['csv_filename'],
+                mime="text/csv",
+                key=f"download_{layer_name}"
+            )
+
+
+            # Coordinate conversion section (add after Download CSV button)
+            st.markdown("---")
+            st.subheader("Converting Coordinates: XRF Meaurement to Optical Mesurement")
+            
+            xrf_bounds = extract_xrf_bounds(combined_data)
+            
+            if xrf_bounds is None:
+                st.error("Could not extract XRF coordinate bounds from the data")
+            else:
+                st.success("XRF coordinate bounds extracted from files")
+                
+                col_left, col_right = st.columns(2)
+                
+                with col_left:
+                    st.markdown("##### XRF Measurement Coordinates")
+                    st.info(f"""
+                    **First point (x1, y1):** ({xrf_bounds['x_1']:.3f}, {xrf_bounds['y_1']:.3f}) mm  
+                    **Last point (x2, y2):** ({xrf_bounds['x_2']:.3f}, {xrf_bounds['y_2']:.3f}) mm
+                    """)
+                
+                with col_right:
+                    st.markdown("##### Optical Measurement Coordinates")
+                    col5, col6 = st.columns(2)
+                    x_1_opt = col5.number_input("x1 (mm)", value=5.0, format="%.3f", key=f"opt_x1_{layer_name}")
+                    y_1_opt = col6.number_input("y1 (mm)", value=5.0, format="%.3f", key=f"opt_y1_{layer_name}")
+                    col7, col8 = st.columns(2)
+                    x_2_opt = col7.number_input("x2 (mm)", value=45.0, format="%.3f", key=f"opt_x2_{layer_name}")
+                    y_2_opt = col8.number_input("y2 (mm)", value=45.0, format="%.3f", key=f"opt_y2_{layer_name}")
+                
+                optical_bounds = {
+                    'x_1': x_1_opt, 'y_1': y_1_opt,
+                    'x_2': x_2_opt, 'y_2': y_2_opt
+                }
+                
+                if st.button("Convert Coordinates", type="primary", key=f"convert_{layer_name}"):
+                    converted_data_result = convert_xrf_to_optical(
+                        combined_data, xrf_bounds, optical_bounds
+                    )
+                    
+                    st.session_state[f'converted_data_{layer_name}'] = converted_data_result
+                    st.success(f"Converted {len(converted_data_result)} coordinates successfully!")
+                
+                if f'converted_data_{layer_name}' in st.session_state:
+                    converted_data_result = st.session_state[f'converted_data_{layer_name}']
+                    
+                    # Visualization
+                    st.markdown("---")
+                    fig = plot_coordinate_comparison(xrf_bounds, optical_bounds, converted_data_result)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Export with converted coordinates
+                    st.markdown("---")
+                    st.subheader("Download CSV with Converted Coordinates")
+                    
+                    # Get metadata from session state or from processed data
+                    if 'current_metadata' in st.session_state:
+                        metadata = st.session_state.current_metadata
+                    else:
+                        metadata = processed['metadata']
+                    
+                    csv_content_converted = create_combined_csv(
+                        combined_data, metadata, converted_data_result, layer_name
+                    )
+                    
+                    created_date = datetime.now().strftime("%Y%m%d")
+                    created_time = datetime.now().strftime("%H%M%S")
+                    csv_filename_converted = f"{metadata['sample_id']}_{metadata['institution']}_{metadata['operator'].replace(' ', '_')}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_mapping_xrf_{layer_name}_{created_date}_{created_time}.csv"
+                    
+                    st.download_button(
+                        label="Download CSV File",
+                        data=csv_content_converted,
+                        file_name=csv_filename_converted,
+                        mime="text/csv",
+                        type="primary",
+                        key=f"download_optical_{layer_name}"
+                    )
+
+if __name__ == "__main__":
+    main()
