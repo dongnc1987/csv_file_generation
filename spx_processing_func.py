@@ -248,122 +248,128 @@ def parse_spx_file(file_path: Path) -> Dict:
 
 def extract_xrf_excel_data(uploaded_file) -> Dict:
     df = pd.read_excel(uploaded_file, header=None)
-
-    # Find header rows - look for "Spectrum"
+    
+    # Find header rows - look for "Spectrum" 
     layer_header_row = None
     column_header_row = None
-
+    
     for idx, row in df.iterrows():
         row_str = ' '.join([str(x) for x in row.values if pd.notna(x)])
         if "Spectrum" in row_str:
             column_header_row = idx
             # Check if layer info is in row above
             if idx > 0:
-                prev_row_str = ' '.join([str(x) for x in df.iloc[idx - 1].values if pd.notna(x)])
+                prev_row_str = ' '.join([str(x) for x in df.iloc[idx-1].values if pd.notna(x)])
                 if "Layer" in prev_row_str:
                     layer_header_row = idx - 1
             break
-
+    
     if column_header_row is None:
         raise ValueError("Could not find header rows with 'Spectrum' column in Excel file")
-
+    
     # If no separate layer header row found, use column header row
     if layer_header_row is None:
         layer_header_row = column_header_row
-
+    
     # Extract layer names and column names
     layer_row = df.iloc[layer_header_row].values
     column_row = df.iloc[column_header_row].values
-
+    
     # Parse layer structure
     layers_columns = {}
     current_layer = None
     spectrum_idx = None
-
+    
     for idx, (layer_name, col_name) in enumerate(zip(layer_row, column_row)):
         # Check if this is the Spectrum column
         if pd.notna(col_name) and "Spectrum" in str(col_name):
             spectrum_idx = idx
             continue
-
+        
         # Skip if column name is NaN
         if pd.isna(col_name):
             continue
-
+        
         col_name_str = str(col_name).strip()
-
+        
         # Detect layer change from layer_row
         if pd.notna(layer_name) and "Layer" in str(layer_name):
             layer_num = str(layer_name).replace("Layer", "").strip()
             current_layer = f"layer{layer_num}"
             if current_layer not in layers_columns:
                 layers_columns[current_layer] = []
-
-        # Skip substrate/base columns (Si [%], O [%], etc.) - check if it's in Substrate section
+        
+        # Skip substrate columns (under "Substrate" header)
         if pd.notna(layer_name) and "Substrate" in str(layer_name):
             continue
-
+        
         # Add column to current layer
         if current_layer is not None and col_name_str:
             layers_columns[current_layer].append((idx, col_name_str))
-
+    
     if spectrum_idx is None:
         raise ValueError("Could not find Spectrum column")
-
+    
     if len(layers_columns) == 0:
         raise ValueError("No layers found in Excel file")
-
+    
     # Extract data starting from the row after column headers
     data_start_row = column_header_row + 1
     data_df = df.iloc[data_start_row:].reset_index(drop=True)
-
-    # Filter valid data rows - FIXED: Don't exclude "Base", only exclude summary rows
+    
+    # Filter valid data rows
+    # Accept ALL spectrum formats: numbers (001, 057), with .spx (26.spx, 224.spx), 
+    # Grid format (Grid_1_001), Object format (Object 100.spx)
+    # Only exclude summary statistics rows
     if len(data_df) > 0:
         spectrum_data = data_df.iloc[:, spectrum_idx].astype(str)
-        # Exclude ONLY summary rows (Mean, Std, Average, etc.)
-        # Keep all numeric spectrum identifiers (001, 002, 099, 132, etc.)
-        valid_rows = ~spectrum_data.str.contains("Mean|Std|Average|dev", na=False, case=True)
+        
+        # Exclude ONLY summary rows containing these exact keywords
+        # Based on analysis: "Mean value", "Std dev.", "Std dev. rel. [%]"
+        valid_rows = ~spectrum_data.str.contains("Mean value|Std dev|rel\.|Average", na=False, case=False, regex=True)
+        
         # Also exclude rows where spectrum is NaN or empty
         valid_rows = valid_rows & spectrum_data.notna() & (spectrum_data != '') & (spectrum_data != 'nan')
+        
         data_df = data_df[valid_rows].reset_index(drop=True)
-
+    
     if len(data_df) == 0:
         raise ValueError("No valid spectrum data found in Excel file")
-
+    
     # Create separate dataframe for each layer
     layers_data = {}
-
+    
     for layer_name, columns_info in layers_columns.items():
         if len(columns_info) == 0:
             continue
-
+        
         # Extract columns for this layer
         layer_df_data = {
             'Spectrum': data_df.iloc[:, spectrum_idx]
         }
-
+        
         for col_idx, original_name in columns_info:
             layer_df_data[original_name] = data_df.iloc[:, col_idx]
-
+        
         # Create dataframe
         layer_df = pd.DataFrame(layer_df_data)
-
+        
         # Convert numeric columns
         for col in layer_df.columns[1:]:
             try:
                 layer_df[col] = pd.to_numeric(layer_df[col], errors='coerce')
             except Exception:
                 pass
-
+        
         # Remove rows with all NaN values (except Spectrum column)
         layer_df = layer_df.dropna(how='all', subset=layer_df.columns[1:])
-
+        
         if len(layer_df) > 0:
             layers_data[layer_name] = layer_df
-
+    
     if len(layers_data) == 0:
         raise ValueError("No valid layer data found in Excel file")
-
+    
     return {
         'num_layers': len(layers_data),
         'layers': layers_data
@@ -1368,4 +1374,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
