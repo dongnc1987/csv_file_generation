@@ -247,8 +247,75 @@ def parse_spx_file(file_path: Path) -> Dict:
 # ============================================================================
 
 def extract_xrf_excel_data(uploaded_file) -> Dict:
-    df = pd.read_excel(uploaded_file, header=None)
+    """
+    Extract XRF data from Excel file with multiple fallback methods for corrupted files
+    """
+    import pandas as pd
+    import xlrd
     
+    # Try multiple methods to read the Excel file
+    df = None
+    errors = []
+    
+    # Method 1: Standard pandas read_excel
+    try:
+        df = pd.read_excel(uploaded_file, header=None)
+    except Exception as e:
+        errors.append(f"pandas default: {str(e)[:100]}")
+    
+    # Method 2: Try with xlrd engine explicitly
+    if df is None:
+        try:
+            df = pd.read_excel(uploaded_file, engine='xlrd', header=None)
+        except Exception as e:
+            errors.append(f"xlrd engine: {str(e)[:100]}")
+    
+    # Method 3: Try with openpyxl engine (for xlsx files)
+    if df is None:
+        try:
+            df = pd.read_excel(uploaded_file, engine='openpyxl', header=None)
+        except Exception as e:
+            errors.append(f"openpyxl engine: {str(e)[:100]}")
+    
+    # Method 4: Manual xlrd with error handling (last resort)
+    if df is None:
+        try:
+            # Reset file pointer if it's a file object
+            if hasattr(uploaded_file, 'seek'):
+                uploaded_file.seek(0)
+            
+            # Open workbook with on_demand
+            wb = xlrd.open_workbook(
+                file_contents=uploaded_file.read() if hasattr(uploaded_file, 'read') else None,
+                filename=uploaded_file if isinstance(uploaded_file, str) else None,
+                on_demand=True,
+                formatting_info=False
+            )
+            
+            # Try to read first sheet with cell-by-cell error handling
+            sheet = wb.sheet_by_index(0)
+            data = []
+            
+            for row_idx in range(sheet.nrows):
+                row = []
+                for col_idx in range(sheet.ncols):
+                    try:
+                        cell = sheet.cell(row_idx, col_idx)
+                        row.append(cell.value)
+                    except:
+                        row.append(None)
+                data.append(row)
+            
+            df = pd.DataFrame(data)
+        except Exception as e:
+            errors.append(f"manual xlrd: {str(e)[:100]}")
+    
+    # If all methods failed, raise error with details
+    if df is None:
+        error_msg = "Failed to read Excel file with all methods:\n" + "\n".join(errors)
+        raise ValueError(error_msg)
+    
+    # Continue with normal processing...
     # Find header rows - look for "Spectrum" 
     layer_header_row = None
     column_header_row = None
@@ -324,8 +391,7 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
     if len(data_df) > 0:
         spectrum_data = data_df.iloc[:, spectrum_idx].astype(str)
         
-        # Exclude ONLY summary rows containing these exact keywords
-        # Based on analysis: "Mean value", "Std dev.", "Std dev. rel. [%]"
+        # Exclude ONLY summary rows
         valid_rows = ~spectrum_data.str.contains("Mean value|Std dev|rel\.|Average", na=False, case=False, regex=True)
         
         # Also exclude rows where spectrum is NaN or empty
@@ -1376,3 +1442,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+
