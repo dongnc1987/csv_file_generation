@@ -248,10 +248,11 @@ def parse_spx_file(file_path: Path) -> Dict:
 
 def extract_xrf_excel_data(uploaded_file) -> Dict:
     """
-    Extract XRF data from Excel file with multiple fallback methods for corrupted files
+    Extract XRF data from Excel file with advanced corruption recovery
     """
     import pandas as pd
     import xlrd
+    from xlrd.sheet import Sheet
     
     # Try multiple methods to read the Excel file
     df = None
@@ -277,22 +278,47 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
         except Exception as e:
             errors.append(f"openpyxl engine: {str(e)[:100]}")
     
-    # Method 4: Manual xlrd with error handling (last resort)
+    # Method 4: Advanced recovery with xlrd patching (for KeyError: 16)
     if df is None:
         try:
-            # Reset file pointer if it's a file object
+            # Monkey-patch xlrd to handle invalid XF formatting indices
+            original_put_cell_ragged = Sheet.put_cell_ragged
+            original_put_cell_unragged = Sheet.put_cell_unragged
+            
+            def patched_put_cell_ragged(self, rowx, colx, ctype, value, xf_index):
+                """Patched version that handles invalid xf_index"""
+                try:
+                    return original_put_cell_ragged(self, rowx, colx, ctype, value, xf_index)
+                except (KeyError, IndexError):
+                    # Use safe default formatting
+                    safe_xf = 15 if xf_index and xf_index > 15 else 0
+                    return original_put_cell_ragged(self, rowx, colx, ctype, value, safe_xf)
+            
+            def patched_put_cell_unragged(self, rowx, colx, ctype, value, xf_index):
+                """Patched version that handles invalid xf_index"""
+                try:
+                    return original_put_cell_unragged(self, rowx, colx, ctype, value, xf_index)
+                except (KeyError, IndexError):
+                    # Use safe default formatting
+                    safe_xf = 15 if xf_index and xf_index > 15 else 0
+                    return original_put_cell_unragged(self, rowx, colx, ctype, value, safe_xf)
+            
+            # Apply patches
+            Sheet.put_cell_ragged = patched_put_cell_ragged
+            Sheet.put_cell_unragged = patched_put_cell_unragged
+            
+            # Reset file pointer
             if hasattr(uploaded_file, 'seek'):
                 uploaded_file.seek(0)
             
-            # Open workbook with on_demand
+            # Try to open with patches applied
             wb = xlrd.open_workbook(
                 file_contents=uploaded_file.read() if hasattr(uploaded_file, 'read') else None,
                 filename=uploaded_file if isinstance(uploaded_file, str) else None,
-                on_demand=True,
-                formatting_info=False
+                formatting_info=False,
+                ragged_rows=True
             )
             
-            # Try to read first sheet with cell-by-cell error handling
             sheet = wb.sheet_by_index(0)
             data = []
             
@@ -307,8 +333,13 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
                 data.append(row)
             
             df = pd.DataFrame(data)
+            
+            # Restore original methods
+            Sheet.put_cell_ragged = original_put_cell_ragged
+            Sheet.put_cell_unragged = original_put_cell_unragged
+            
         except Exception as e:
-            errors.append(f"manual xlrd: {str(e)[:100]}")
+            errors.append(f"xlrd with patching: {str(e)[:100]}")
     
     # If all methods failed, raise error with helpful message
     if df is None:
@@ -1450,5 +1481,6 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
 
