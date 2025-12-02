@@ -310,9 +310,21 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
         except Exception as e:
             errors.append(f"manual xlrd: {str(e)[:100]}")
     
-    # If all methods failed, raise error with details
+    # If all methods failed, raise error with helpful message
     if df is None:
-        error_msg = "Failed to read Excel file with all methods:\n" + "\n".join(errors)
+        error_msg = (
+            "❌ CORRUPTED EXCEL FILE - Cannot read the uploaded file.\n\n"
+            "This file appears to be corrupted at the binary level. "
+            "All reading methods failed:\n" + 
+            "\n".join(f"  • {err}" for err in errors) +
+            "\n\n📋 SOLUTIONS:\n"
+            "1. Re-export the file from your XRF software\n"
+            "2. Save as .xlsx format instead of .xls (more robust)\n"
+            "3. Open the file in Excel and save it again\n"
+            "4. Check if the file was corrupted during transfer\n"
+            "5. Verify the file opens correctly in Excel before uploading\n\n"
+            "If the file opens fine in Excel, try saving it as .xlsx and upload again."
+        )
         raise ValueError(error_msg)
     
     # Continue with normal processing...
@@ -385,9 +397,6 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
     data_df = df.iloc[data_start_row:].reset_index(drop=True)
     
     # Filter valid data rows
-    # Accept ALL spectrum formats: numbers (001, 057), with .spx (26.spx, 224.spx), 
-    # Grid format (Grid_1_001), Object format (Object 100.spx)
-    # Only exclude summary statistics rows
     if len(data_df) > 0:
         spectrum_data = data_df.iloc[:, spectrum_idx].astype(str)
         
@@ -440,7 +449,6 @@ def extract_xrf_excel_data(uploaded_file) -> Dict:
         'num_layers': len(layers_data),
         'layers': layers_data
     }
-
 
 def parse_xrf_excel_to_dict(xrf_df: pd.DataFrame, layer_name: str) -> List[Dict]:
     """
@@ -1442,4 +1450,5 @@ def main():
 if __name__ == "__main__":
 
     main()
+
 
