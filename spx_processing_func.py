@@ -549,7 +549,7 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         "Institution," + metadata['institution'],
         "Measurement Type," + metadata['measurement_type'],
         "Spectrometer," + metadata.get('spectrometer', 'Bruker M4 Tornado'),
-        "XRF Fitting Method," + metadata.get('xrf_fitted_method', 'Series')
+        "XRF Fitting Method," + metadata.get('xrf_fitting_method', 'Series')
     ])
     
     if combined_data:
@@ -810,7 +810,7 @@ def render_metadata_section():
         'operator': "",
         'operator_valid': False,
         'institution': "HZB",
-        'xrf_fitted_method': "Series"
+        'xrf_fitting_method': "Series"
     }
     
     for key, value in defaults.items():
@@ -874,12 +874,12 @@ def render_metadata_section():
         
         institution = st.text_input("Institution", value=st.session_state.institution)
         measurement_type = st.text_input("Measurement Type", value="Mapping XRF")
-        xrf_fitted_method = st.selectbox("XRF Fitted Method", ["Series", "Bayesian"], index=0)
+        xrf_fitting_method = st.selectbox("XRF Fitting Method", ["Series", "Bayesian"], index=0)
         
         st.session_state.update({
             'operator': operator, 'operator_valid': operator_valid,
             'institution': institution, 'measurement_type': measurement_type,
-            'xrf_fitted_method': xrf_fitted_method
+            'xrf_fitting_method': xrf_fitting_method
         })
     
     st.markdown("---")
@@ -891,7 +891,8 @@ def render_metadata_section():
         'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
         'operator': operator, 'operator_valid': operator_valid,
         'institution': institution, 'measurement_type': measurement_type,
-        'xrf_fitted_method': xrf_fitted_method
+        'xrf_fitting_method': xrf_fitting_method
 
     }
+
 
