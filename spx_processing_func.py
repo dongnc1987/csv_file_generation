@@ -769,7 +769,7 @@ def plot_coordinate_comparison(xrf_bounds: Dict, optical_bounds: Dict, converted
     return fig
 
 
-def plot_spectrum(data: Dict, title: str):
+def plot_spectrum(data: Dict, title: str, yscale: str = "linear"):
     """Plot SPX spectrum"""
     calib_abs = data['calib_abs_kev']
     calib_lin = data['calib_lin_kev_per_channel']
@@ -778,18 +778,23 @@ def plot_spectrum(data: Dict, title: str):
     energy_axis = calib_abs + calib_lin * np.arange(len(spectrum_spx))
     
     fig = go.Figure()
-    
     fig.add_trace(go.Scatter(
         x=energy_axis, y=spectrum_spx, mode='lines',
         name='SPX', line=dict(color='royalblue', width=1.5)
     ))
     
     fig.update_layout(
-        title=title, xaxis_title="Energy (keV)", yaxis_title="Counts",
-        height=400, template='plotly_white', showlegend=True
+        title=title,
+        xaxis_title="Energy (keV)",
+        yaxis_title="Counts",
+        height=400,
+        template='plotly_white',
+        showlegend=True,
+        yaxis=dict(type=yscale)  # <── switch between "linear" and "log"
     )
     
     return fig
+
 
 
 # ============================================================================
