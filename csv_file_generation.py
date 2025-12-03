@@ -1179,30 +1179,35 @@ with tab4:
             } for d in combined_data])
             
             st.dataframe(df_display, use_container_width=True, height=400, hide_index=True)
-            
+                       
             st.markdown("#### Spectrum Viewer")
-            
+
             if combined_data:
                 unique_spx_files = sorted(list(set(d['spx_name'] for d in combined_data)))
                 selected_file = st.selectbox("Select file to view spectrum", unique_spx_files, index=0)
                 
+                # Scale selection
+                scale_option = st.radio("Y-axis scale", ["Linear", "Logarithmic"], index=0, horizontal=True)
+                yscale = "log" if scale_option == "Logarithmic" else "linear"
+
                 selected_data = next(d for d in combined_data if d['spx_name'] == selected_file)
                 selected_layers = [d for d in combined_data if d['spx_name'] == selected_file]
-                
+
                 cols = st.columns(min(len(selected_layers) + 2, 6))
                 with cols[0]:
                     st.info(f"**File:** {selected_file}")
                 with cols[1]:
                     st.info(f"**Position:** ({selected_data['x_position_mm']:.3f}, {selected_data['y_position_mm']:.3f}) mm")
-                
+
                 for i, layer_data in enumerate(selected_layers):
                     if i + 2 < len(cols):
                         with cols[i+2]:
                             thickness_str = f"{layer_data['thickness_nm']:.2f} nm" if layer_data['thickness_nm'] else "N/A"
                             st.info(f"**{layer_data['layer_name']}:** {thickness_str}")
-                
-                fig = plot_spectrum(selected_data, f"Spectrum: {selected_file}")
+
+                fig = plot_spectrum(selected_data, f"Spectrum: {selected_file}", yscale=yscale)
                 st.plotly_chart(fig, use_container_width=True)
+
         
         st.markdown("---")
         st.markdown("### Download CSV (Original XRF Coordinates)")
