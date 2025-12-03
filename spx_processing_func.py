@@ -790,7 +790,7 @@ def plot_spectrum(data: Dict, title: str, yscale: str = "linear"):
         height=400,
         template='plotly_white',
         showlegend=True,
-        yaxis=dict(type=yscale)  # <── switch between "linear" and "log"
+        yaxis=dict(type=yscale)
     )
     
     return fig
@@ -892,4 +892,5 @@ def render_metadata_section():
         'operator': operator, 'operator_valid': operator_valid,
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitted_method': xrf_fitted_method
+
     }
