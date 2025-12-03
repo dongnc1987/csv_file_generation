@@ -1072,8 +1072,6 @@ with tab4:
             help="Upload a ZIP file with all SPX spectrum files"
         )
     
-    st.markdown("---")
-    
     if st.button("Combine XRF and SPX", type="primary"):
         if not metadata_dict['operator_valid']:
             st.error("Please fix the operator name before processing")
@@ -1163,9 +1161,6 @@ with tab4:
     if st.session_state.processed_data is not None:
         processed = st.session_state.processed_data
         combined_data = processed['combined_data']
-        
-        st.markdown("---")
-        st.markdown("### Results")
         
         with st.expander("Combined Data Table & Spectrum Viewer", expanded=False):
             st.markdown("#### Combined Data Table")
