@@ -1111,7 +1111,7 @@ with tab4:
                     progress_bar.progress(0.9)
                     
                     metadata = {
-                        'sample_id': metadata_dict['sample_id'],
+                        'substrate_number': metadata_dict['substrate_number'],
                         'substrate': metadata_dict['substrate'],
                         'sample_description': metadata_dict['sample_description'],
                         'sample_size': metadata_dict['sample_size'],
@@ -1131,7 +1131,7 @@ with tab4:
                     created_date = datetime.now().strftime("%Y%m%d")
                     created_time = datetime.now().strftime("%H%M%S")
                     operator_formatted = metadata_dict['operator'].replace(' ', '_')
-                    csv_filename = f"{metadata_dict['sample_id']}_{metadata_dict['institution']}_{operator_formatted}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_mapping_xrf_{metadata_dict['xrf_fitting_method']}_original_{created_date}_{created_time}.csv"
+                    csv_filename = f"{metadata_dict['substrate_number']}_{metadata_dict['institution']}_{operator_formatted}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_mapping_xrf_{metadata_dict['xrf_fitting_method']}_original_{created_date}_{created_time}.csv"
                     
                     st.session_state.processed_data = {
                         'combined_data': combined_data,
@@ -1277,7 +1277,7 @@ with tab4:
                 created_date = datetime.now().strftime("%Y%m%d")
                 created_time = datetime.now().strftime("%H%M%S")
                 operator_formatted = metadata['operator'].replace(' ', '_')
-                csv_filename_converted = f"{metadata['sample_id']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_mapping_xrf_{metadata['xrf_fitting_method']}_{created_date}_{created_time}.csv"
+                csv_filename_converted = f"{metadata['substrate_number']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_mapping_xrf_{metadata['xrf_fitting_method']}_{created_date}_{created_time}.csv"
                 
                 st.download_button(
                     label="Download CSV File with Optical Coordinates",
