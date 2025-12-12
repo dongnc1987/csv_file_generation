@@ -806,7 +806,7 @@ def render_metadata_section():
     
     # Initialize session state defaults
     defaults = {
-        'sample_id': "3716-15",
+        'substrate_id': "3716-15",
         'operator': "",
         'operator_valid': False,
         'institution': "HZB",
@@ -820,20 +820,20 @@ def render_metadata_section():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        sample_id = st.text_input("Sample ID", value=st.session_state.sample_id)
+        substrate_id = st.text_input("Sample ID", value=st.session_state.substrate_id)
         substrate = st.selectbox("Substrate", 
             ["Silicon", "Glass", "Quartz", "Plastic", "Metal", "Other"], index=0)
-        sample_description = st.text_area(
+        substrate_description = st.text_area(
             "Sample Description",
             value="Perovskite solar cell with full stacks",
             max_chars=500,
             placeholder="Describe components, materials, layers of your samples"
         )
-        sample_size = st.text_input("Sample Size (mm)", value="50x50")
+        substrate_size = st.text_input("Sample Size (mm)", value="50x50")
         
         st.session_state.update({
-            'sample_id': sample_id, 'substrate': substrate,
-            'sample_description': sample_description, 'sample_size': sample_size
+            'substrate_id': substrate_id, 'substrate': substrate,
+            'substrate_description': substrate_description, 'substrate_size': substrate_size
         })
     
     with col2:
@@ -885,8 +885,8 @@ def render_metadata_section():
     st.markdown("---")
     
     return {
-        'sample_id': sample_id, 'substrate': substrate,
-        'sample_description': sample_description, 'sample_size': sample_size,
+        'substrate_id': substrate_id, 'substrate': substrate,
+        'substrate_description': substrate_description, 'substrate_size': substrate_size,
         'fabrication_method': fabrication_method, 'treatment_method': treatment_method,
         'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
         'operator': operator, 'operator_valid': operator_valid,
@@ -894,5 +894,6 @@ def render_metadata_section():
         'xrf_fitting_method': xrf_fitting_method
 
     }
+
 
 
