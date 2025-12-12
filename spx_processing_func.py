@@ -540,8 +540,14 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
     """Create CSV with one row per SPX file, all layers as horizontal columns"""
     csv_lines = []
     
+
     # Metadata section
     csv_lines.extend([
+        "Substrate Number," + metadata['substrate_number'],
+        "Substrate," + metadata['substrate'],
+        "Sample Description," + metadata['sample_description'],
+        "Sample Size," + metadata['sample_size'],
+        "Fabrication Method," + metadata['fabrication_method'],
         "Treatment Method," + metadata['treatment_method'],
         "Treatment Sequence," + metadata['treatment_sequence'],
         "Air exposure Duration (min)," + metadata['air_exposure_duration'],
@@ -549,7 +555,7 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         "Institution," + metadata['institution'],
         "Measurement Type," + metadata['measurement_type'],
         "Spectrometer," + metadata.get('spectrometer', 'Bruker M4 Tornado'),
-        "XRF Fitted Method," + metadata.get('xrf_fitting_method', 'Series')
+        "XRF Fitting Method," + metadata.get('xrf_fitting_method', 'Series')
     ])
     
     if combined_data:
@@ -838,7 +844,8 @@ def render_metadata_section():
     
     with col2:
         fabrication_method = st.selectbox("Fabrication Method", 
-            ["PVD-J", "Sputtering", "Tube Furnace", "RTP", "PLD", "PVD-P"], 
+            ["CVD", "PVD", "PLD", "Sputtering", "Thermal Evaporation",
+             "E-beam", "Spin Coating", "Sol-gel", "Slot-Die Coating", "Inkjet Printing"], 
             index=1)
         treatment_method = st.selectbox("Treatment Method", 
             ["As-deposited", "Annealing", "UV-Ozone", "Irradiation", "Plasma"], index=0)
@@ -873,7 +880,7 @@ def render_metadata_section():
         
         institution = st.text_input("Institution", value=st.session_state.institution)
         measurement_type = st.text_input("Measurement Type", value="Mapping XRF")
-        xrf_fitting_method = st.selectbox("XRF Fitted Method", ["Series", "Bayesian"], index=0)
+        xrf_fitting_method = st.selectbox("XRF Fitting Method", ["Series", "Bayesian"], index=0)
         
         st.session_state.update({
             'operator': operator, 'operator_valid': operator_valid,
