@@ -549,7 +549,7 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         "Institution," + metadata['institution'],
         "Measurement Type," + metadata['measurement_type'],
         "Spectrometer," + metadata.get('spectrometer', 'Bruker M4 Tornado'),
-        "XRF Fitting Method," + metadata.get('xrf_fitting_method', 'Series')
+        "XRF Fitted Method," + metadata.get('xrf_fitting_method', 'Series')
     ])
     
     if combined_data:
@@ -806,7 +806,7 @@ def render_metadata_section():
     
     # Initialize session state defaults
     defaults = {
-        'substrate_id': "3716-15",
+        'substrate_number': "3716-15",
         'operator': "",
         'operator_valid': False,
         'institution': "HZB",
@@ -820,26 +820,25 @@ def render_metadata_section():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        substrate_id = st.text_input("Sample ID", value=st.session_state.substrate_id)
+        substrate_number = st.text_input("Substrate Number", value=st.session_state.substrate_number)
         substrate = st.selectbox("Substrate", 
             ["Silicon", "Glass", "Quartz", "Plastic", "Metal", "Other"], index=0)
-        substrate_description = st.text_area(
+        sample_description = st.text_area(
             "Sample Description",
             value="Perovskite solar cell with full stacks",
             max_chars=500,
             placeholder="Describe components, materials, layers of your samples"
         )
-        substrate_size = st.text_input("Sample Size (mm)", value="50x50")
+        sample_size = st.text_input("Sample Size (mm)", value="50x50")
         
         st.session_state.update({
-            'substrate_id': substrate_id, 'substrate': substrate,
-            'substrate_description': substrate_description, 'substrate_size': substrate_size
+            'substrate_number': substrate_number, 'substrate': substrate,
+            'sample_description': sample_description, 'sample_size': sample_size
         })
     
     with col2:
         fabrication_method = st.selectbox("Fabrication Method", 
-            ["CVD", "PVD", "PLD", "Sputtering", "Thermal Evaporation",
-             "E-beam", "Spin Coating", "Sol-gel", "Slot-Die Coating", "Inkjet Printing"], 
+            ["PVD-J", "Sputtering", "Tube Furnace", "RTP", "PLD", "PVD-P"], 
             index=1)
         treatment_method = st.selectbox("Treatment Method", 
             ["As-deposited", "Annealing", "UV-Ozone", "Irradiation", "Plasma"], index=0)
@@ -874,7 +873,7 @@ def render_metadata_section():
         
         institution = st.text_input("Institution", value=st.session_state.institution)
         measurement_type = st.text_input("Measurement Type", value="Mapping XRF")
-        xrf_fitting_method = st.selectbox("XRF Fitting Method", ["Series", "Bayesian"], index=0)
+        xrf_fitting_method = st.selectbox("XRF Fitted Method", ["Series", "Bayesian"], index=0)
         
         st.session_state.update({
             'operator': operator, 'operator_valid': operator_valid,
@@ -885,12 +884,11 @@ def render_metadata_section():
     st.markdown("---")
     
     return {
-        'substrate_id': substrate_id, 'substrate': substrate,
-        'substrate_description': substrate_description, 'substrate_size': substrate_size,
+        'substrate_number': substrate_number, 'substrate': substrate,
+        'sample_description': sample_description, 'sample_size': sample_size,
         'fabrication_method': fabrication_method, 'treatment_method': treatment_method,
         'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
         'operator': operator, 'operator_valid': operator_valid,
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
-
     }
