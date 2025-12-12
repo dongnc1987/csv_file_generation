@@ -68,14 +68,14 @@ def format_date(date_obj):
     return date_obj.strftime("%A, %B %d, %Y")
 
 
-def generate_substrate_filename(sample_number, institution, operator, substrate_type):
+def generate_substrate_filename(substrate_number, institution, operator, substrate_type):
     """Generate substrate CSV filename"""
     operator_formatted = operator.replace(' ', '_')
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{sample_number}_{institution}_{operator_formatted}_substrate_{substrate_type}_{current_datetime}.csv"
+    return f"{substrate_number}_{institution}_{operator_formatted}_substrate_{substrate_type}_{current_datetime}.csv"
 
 
-def generate_fabrication_filename(sample_number, institution, operator, sequence, method):
+def generate_fabrication_filename(substrate_number, institution, operator, sequence, method):
     """Generate fabrication CSV filename"""
     operator_formatted = operator.replace(' ', '_')
     method_map = {
@@ -88,7 +88,7 @@ def generate_fabrication_filename(sample_number, institution, operator, sequence
     }
     method_formatted = method_map.get(method, method.upper())
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{sample_number}_{institution}_{operator_formatted}_fab{sequence}_{method_formatted}_{current_datetime}.csv"
+    return f"{substrate_number}_{institution}_{operator_formatted}_fab{sequence}_{method_formatted}_{current_datetime}.csv"
 
 
 def parse_pvdp_csv(uploaded_file):
@@ -97,7 +97,7 @@ def parse_pvdp_csv(uploaded_file):
     lines = content.split('\n')
     
     metadata = {
-        'sample_number': None,
+        'substrate_number': None,
         'process_id': None,
         'operator_code': None,
         'date': None,
@@ -113,7 +113,7 @@ def parse_pvdp_csv(uploaded_file):
             metadata['time'] = time_str
         elif line.startswith('# Substrate Number:'):
             sample_num = line.replace('# Substrate Number:', '').strip()
-            metadata['sample_number'] = sample_num
+            metadata['substrate_number'] = sample_num
         elif line.startswith('# process ID:'):
             process_id = line.replace('# process ID:', '').strip()
             metadata['process_id'] = process_id
@@ -129,7 +129,7 @@ def replace_operator_in_csv(csv_content, old_operator, new_operator):
     return csv_content.replace(f"# operator: {old_operator}", f"# operator: {new_operator}")
 
 
-def generate_pvdp_filename_from_metadata(sample_number, institution, operator, sequence, date_str, time_str):
+def generate_pvdp_filename_from_metadata(substrate_number, institution, operator, sequence, date_str, time_str):
     """Generate PVD-P filename from extracted metadata"""
     operator_formatted = operator.replace(' ', '_')
     
@@ -138,12 +138,12 @@ def generate_pvdp_filename_from_metadata(sample_number, institution, operator, s
     
     time_formatted = time_str.replace(':', '')
     
-    return f"{sample_number}_{institution}_{operator_formatted}_fab{sequence}_PVDP_{date_formatted}_{time_formatted}.csv"
+    return f"{substrate_number}_{institution}_{operator_formatted}_fab{sequence}_PVDP_{date_formatted}_{time_formatted}.csv"
 
 
 def generate_substrate_csv_content(data):
     """Generate substrate CSV content"""
-    return f"""sample_number,{data['sample_number']}
+    return f"""substrate_number,{data['substrate_number']}
 sub_substrate_type,{data['substrate_type']}
 sub_production_batch,{data['production_batch']}
 sub_vendor,{data['vendor']}
@@ -169,7 +169,7 @@ sub_clean_time,"{data['clean_time']}"
 
 def generate_pvdj_csv_content(common_data, specific_data):
     """Generate PVD-J CSV content"""
-    csv_content = f"""sample_number,{common_data['sample_number']}
+    csv_content = f"""substrate_number,{common_data['substrate_number']}
 fab_method,{common_data['method']}
 fab_sequence,{common_data['sequence']}
 fab_process_number,{specific_data['process_number']}
@@ -196,7 +196,7 @@ fab_time,"{common_data['time']}"
 
 def generate_sputtering_csv_content(common_data, specific_data):
     """Generate Sputtering CSV content"""
-    csv_content = f"""sample_number,{common_data['sample_number']}
+    csv_content = f"""substrate_number,{common_data['substrate_number']}
 fab_method,{common_data['method']}
 fab_sequence,{common_data['sequence']}
 fab_operator,{common_data['operator']}
@@ -218,7 +218,7 @@ fab_time,"{common_data['time']}"
 
 def generate_tubefurnace_csv_content(common_data, specific_data):
     """Generate Tube Furnace CSV content"""
-    csv_content = f"""sample_number,{common_data['sample_number']}
+    csv_content = f"""substrate_number,{common_data['substrate_number']}
 fab_method,{common_data['method']}
 fab_sequence,{common_data['sequence']}
 fab_operator,{common_data['operator']}
@@ -244,7 +244,7 @@ fab_time,"{common_data['time']}"
 
 def generate_rtp_csv_content(common_data, specific_data):
     """Generate RTP CSV content"""
-    csv_content = f"""sample_number,{common_data['sample_number']}
+    csv_content = f"""substrate_number,{common_data['substrate_number']}
 fab_method,{common_data['method']}
 fab_sequence,{common_data['sequence']}
 fab_operator,{common_data['operator']}
@@ -268,7 +268,7 @@ fab_time,"{common_data['time']}"
 
 def generate_pld_csv_content(common_data, specific_data):
     """Generate PLD CSV content"""
-    csv_content = f"""sample_number,{common_data['sample_number']}
+    csv_content = f"""substrate_number,{common_data['substrate_number']}
 fab_method,{common_data['method']}
 fab_sequence,{common_data['sequence']}
 fab_operator,{common_data['operator']}
@@ -296,7 +296,7 @@ fab_time,"{common_data['time']}"
 
 # ==================== TREATMENT ====================
 
-def generate_treatment_filename(sample_number, institution, operator, sequence, method):
+def generate_treatment_filename(substrate_number, institution, operator, sequence, method):
     """Generate treatment CSV filename"""
     operator_formatted = operator.replace(' ', '_')
     method_map = {
@@ -305,12 +305,12 @@ def generate_treatment_filename(sample_number, institution, operator, sequence, 
     }
     method_formatted = method_map.get(method, method)
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{sample_number}_{institution}_{operator_formatted}_treat{sequence}_{method_formatted}_{current_datetime}.csv"
+    return f"{substrate_number}_{institution}_{operator_formatted}_treat{sequence}_{method_formatted}_{current_datetime}.csv"
 
 
 def generate_treatment_csv_content(common_data, specific_data):
     """Generate Treatment CSV content (works for both Annealing and As-deposited)"""
-    csv_content = f"""sample_number,{common_data['sample_number']}
+    csv_content = f"""substrate_number,{common_data['substrate_number']}
 treat_method,{common_data['method']}
 treat_sequence,{common_data['sequence']}
 treat_operator,{common_data['operator']}
@@ -337,7 +337,7 @@ with tab1:
     st.header("Substrate CSV File Generator")
     
     # Set default values
-    st.session_state.sub_sample_number = st.session_state.get('sub_sample_number', "3716-15")
+    st.session_state.sub_substrate_number = st.session_state.get('sub_substrate_number', "3716-15")
     st.session_state.sub_institution = st.session_state.get('sub_institution', "HZB")
     st.session_state.sub_operator = st.session_state.get('sub_operator', "Dong Nguyen")
     st.session_state.sub_substrate_type = st.session_state.get('sub_substrate_type', "quartz")
@@ -363,7 +363,7 @@ with tab1:
     
     with col1:
         st.subheader("Sample Information")
-        st.session_state.sub_sample_number = st.text_input("Sample Number", value=st.session_state.sub_sample_number, key="sub_sn")
+        st.session_state.sub_substrate_number = st.text_input("Substrate Number", value=st.session_state.sub_substrate_number, key="sub_sn")
         st.session_state.sub_institution = st.text_input("Institution", value=st.session_state.sub_institution, key="sub_inst")
         st.session_state.sub_operator = st.text_input("Operator (First and Last Name)", value=st.session_state.sub_operator, help="Must include both first and last name", key="sub_op")
         st.session_state.sub_substrate_type = st.text_input("Substrate Type", value=st.session_state.sub_substrate_type, key="sub_type")
@@ -398,8 +398,8 @@ with tab1:
     st.divider()
     
     if st.button("Generate Substrate CSV File", type="primary"):
-        if not st.session_state.sub_sample_number or not st.session_state.sub_institution or not st.session_state.sub_operator or not st.session_state.sub_substrate_type:
-            st.error("Please fill in all required fields: Sample Number, Institution, Operator, and Substrate Type")
+        if not st.session_state.sub_substrate_number or not st.session_state.sub_institution or not st.session_state.sub_operator or not st.session_state.sub_substrate_type:
+            st.error("Please fill in all required fields: Substrate Number, Institution, Operator, and Substrate Type")
         elif not validate_operator_name(st.session_state.sub_operator):
             st.error("Operator must include both First Name and Last Name (e.g., Dong Nguyen)")
         else:
@@ -410,7 +410,7 @@ with tab1:
                 st.error("Invalid time format. Please use HH:MM:SS format")
             else:
                 substrate_data = {
-                    'sample_number': st.session_state.sub_sample_number,
+                    'substrate_number': st.session_state.sub_substrate_number,
                     'substrate_type': st.session_state.sub_substrate_type,
                     'production_batch': st.session_state.sub_production_batch,
                     'vendor': st.session_state.sub_vendor,
@@ -435,7 +435,7 @@ with tab1:
                 
                 csv_content = generate_substrate_csv_content(substrate_data)
                 filename = generate_substrate_filename(
-                    st.session_state.sub_sample_number,
+                    st.session_state.sub_substrate_number,
                     st.session_state.sub_institution,
                     st.session_state.sub_operator,
                     st.session_state.sub_substrate_type
@@ -465,7 +465,7 @@ with tab2:
     )
     
     # Set common default values
-    st.session_state.fab_sample_number = st.session_state.get('fab_sample_number', "3716-15")
+    st.session_state.fab_substrate_number = st.session_state.get('fab_substrate_number', "3716-15")
     st.session_state.fab_institution = st.session_state.get('fab_institution', "HZB")
     st.session_state.fab_operator = st.session_state.get('fab_operator', "Lars Drescher")
     st.session_state.fab_sequence = st.session_state.get('fab_sequence', "1")
@@ -477,7 +477,7 @@ with tab2:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.session_state.fab_sample_number = st.text_input("Sample Number", value=st.session_state.fab_sample_number, key="fab_sn")
+            st.session_state.fab_substrate_number = st.text_input("Substrate Number", value=st.session_state.fab_substrate_number, key="fab_sn")
             st.session_state.fab_institution = st.text_input("Institution", value=st.session_state.fab_institution, key="fab_inst")
         
         with col2:
@@ -512,7 +512,7 @@ with tab2:
             st.success("File uploaded successfully!")
             
             with st.expander("Extracted Metadata from CSV"):
-                st.write(f"Sample Number: {metadata['sample_number']}")
+                st.write(f"Substrate Number: {metadata['substrate_number']}")
                 st.write(f"Process ID: {metadata['process_id']}")
                 st.write(f"Operator Code: {metadata['operator_code']}")
                 st.write(f"Date: {metadata['date']}")
@@ -529,7 +529,7 @@ with tab2:
                     updated_csv = replace_operator_in_csv(csv_content, metadata['operator_code'], pvdp_operator)
                     
                     filename = generate_pvdp_filename_from_metadata(
-                        metadata['sample_number'],
+                        metadata['substrate_number'],
                         pvdp_institution,
                         pvdp_operator,
                         pvdp_sequence,
@@ -754,8 +754,8 @@ with tab2:
         st.divider()
         
         if st.button("Generate Fabrication CSV File", type="primary"):
-            if not st.session_state.fab_sample_number or not st.session_state.fab_institution or not st.session_state.fab_operator or not st.session_state.fab_sequence:
-                st.error("Please fill in all required fields: Sample Number, Institution, Operator, and Sequence")
+            if not st.session_state.fab_substrate_number or not st.session_state.fab_institution or not st.session_state.fab_operator or not st.session_state.fab_sequence:
+                st.error("Please fill in all required fields: Substrate Number, Institution, Operator, and Sequence")
             elif not validate_operator_name(st.session_state.fab_operator):
                 st.error("Operator must include both First Name and Last Name")
             else:
@@ -766,7 +766,7 @@ with tab2:
                     st.error("Invalid time format. Please use HH:MM:SS format")
                 else:
                     common_data = {
-                        'sample_number': st.session_state.fab_sample_number,
+                        'substrate_number': st.session_state.fab_substrate_number,
                         'institution': st.session_state.fab_institution,
                         'operator': st.session_state.fab_operator,
                         'method': fab_method,
@@ -863,7 +863,7 @@ with tab2:
                         csv_content = generate_pld_csv_content(common_data, specific_data)
                     
                     filename = generate_fabrication_filename(
-                        st.session_state.fab_sample_number,
+                        st.session_state.fab_substrate_number,
                         st.session_state.fab_institution,
                         st.session_state.fab_operator,
                         st.session_state.fab_sequence,
@@ -892,7 +892,7 @@ with tab3:
     )
     
     # Set common default values
-    st.session_state.treat_sample_number = st.session_state.get('treat_sample_number', "3716-15")
+    st.session_state.treat_substrate_number = st.session_state.get('treat_substrate_number', "3716-15")
     st.session_state.treat_institution = st.session_state.get('treat_institution', "HZB")
     st.session_state.treat_operator = st.session_state.get('treat_operator', "Dong Nguyen")
     
@@ -909,7 +909,7 @@ with tab3:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.session_state.treat_sample_number = st.text_input("Sample Number", value=st.session_state.treat_sample_number, key="treat_sn")
+        st.session_state.treat_substrate_number = st.text_input("Substrate Number", value=st.session_state.treat_substrate_number, key="treat_sn")
         st.session_state.treat_institution = st.text_input("Institution", value=st.session_state.treat_institution, key="treat_inst")
     
     with col2:
@@ -986,8 +986,8 @@ with tab3:
     st.divider()
     
     if st.button("Generate Treatment CSV File", type="primary"):
-        if not st.session_state.treat_sample_number or not st.session_state.treat_institution or not st.session_state.treat_operator or not st.session_state.treat_sequence:
-            st.error("Please fill in all required fields: Sample Number, Institution, Operator, and Sequence")
+        if not st.session_state.treat_substrate_number or not st.session_state.treat_institution or not st.session_state.treat_operator or not st.session_state.treat_sequence:
+            st.error("Please fill in all required fields: Substrate Number, Institution, Operator, and Sequence")
         elif not validate_operator_name(st.session_state.treat_operator):
             st.error("Operator must include both First Name and Last Name")
         else:
@@ -998,7 +998,7 @@ with tab3:
                 st.error("Invalid time format. Please use HH:MM:SS format")
             else:
                 common_data = {
-                    'sample_number': st.session_state.treat_sample_number,
+                    'substrate_number': st.session_state.treat_substrate_number,
                     'institution': st.session_state.treat_institution,
                     'operator': st.session_state.treat_operator,
                     'method': treat_method,
@@ -1029,7 +1029,7 @@ with tab3:
                 csv_content = generate_treatment_csv_content(common_data, specific_data)
                 
                 filename = generate_treatment_filename(
-                    st.session_state.treat_sample_number,
+                    st.session_state.treat_substrate_number,
                     st.session_state.treat_institution,
                     st.session_state.treat_operator,
                     st.session_state.treat_sequence,
@@ -1286,3 +1286,4 @@ with tab4:
                     type="primary"
 
                 )
+
