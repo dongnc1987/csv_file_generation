@@ -894,6 +894,3 @@ def render_metadata_section():
         'xrf_fitting_method': xrf_fitting_method
 
     }
-
-
-
