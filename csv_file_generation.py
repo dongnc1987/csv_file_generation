@@ -915,19 +915,20 @@ with tab3:
     with col2:
         st.session_state.treat_operator = st.text_input("Operator (First and Last Name)", value=st.session_state.treat_operator, key="treat_op")
         
-        # Sequence input - disabled for As-deposited
+        # Sequence input - always 0 for As-deposited
         if treat_method == "As-deposited":
-            st.session_state.treat_sequence = st.text_input(
+            st.text_input(
                 "Treatment Sequence", 
                 value="0", 
                 key="treat_seq",
                 disabled=True,
                 help="As-deposited always uses sequence 0"
             )
+            st.session_state.treat_sequence = "0"  # Force it to be 0
         else:
             st.session_state.treat_sequence = st.text_input(
                 "Treatment Sequence", 
-                value=st.session_state.treat_sequence, 
+                value=st.session_state.get('treat_sequence', "1"), 
                 key="treat_seq"
             )
     
