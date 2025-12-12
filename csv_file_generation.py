@@ -70,14 +70,14 @@ def format_date(date_obj):
 
 def generate_substrate_filename(substrate_number, institution, operator, substrate_type):
     """Generate substrate CSV filename"""
-    operator_formatted = operator.replace(' ', '_')
+    operator_formatted = operator
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{substrate_number}_{institution}_{operator_formatted}_substrate_{substrate_type}_{current_datetime}.csv"
 
 
 def generate_fabrication_filename(substrate_number, institution, operator, sequence, method):
     """Generate fabrication CSV filename"""
-    operator_formatted = operator.replace(' ', '_')
+    operator_formatted = operator
     method_map = {
         'PVD-J': 'PVDJ',
         'Sputtering': 'Sputtering',
@@ -131,7 +131,7 @@ def replace_operator_in_csv(csv_content, old_operator, new_operator):
 
 def generate_pvdp_filename_from_metadata(substrate_number, institution, operator, sequence, date_str, time_str):
     """Generate PVD-P filename from extracted metadata"""
-    operator_formatted = operator.replace(' ', '_')
+    operator_formatted = operator
     
     date_obj = datetime.strptime(date_str, "%Y/%m/%d")
     date_formatted = date_obj.strftime("%Y%m%d")
@@ -298,7 +298,7 @@ fab_time,"{common_data['time']}"
 
 def generate_treatment_filename(substrate_number, institution, operator, sequence, method):
     """Generate treatment CSV filename"""
-    operator_formatted = operator.replace(' ', '_')
+    operator_formatted = operator
     method_map = {
         'Annealing': 'Annealing',
         'As-deposited': 'As-deposited'
@@ -339,7 +339,7 @@ with tab1:
     # Set default values
     st.session_state.sub_substrate_number = st.session_state.get('sub_substrate_number', "3716-15")
     st.session_state.sub_institution = st.session_state.get('sub_institution', "HZB")
-    st.session_state.sub_operator = st.session_state.get('sub_operator', "Dong Nguyen")
+    st.session_state.sub_operator = st.session_state.get('sub_operator', "Steinkopf Lars")
     st.session_state.sub_substrate_type = st.session_state.get('sub_substrate_type', "quartz")
     st.session_state.sub_thickness = st.session_state.get('sub_thickness', "1.1")
     st.session_state.sub_size = st.session_state.get('sub_size', "50.8x50.8")
@@ -401,7 +401,7 @@ with tab1:
         if not st.session_state.sub_substrate_number or not st.session_state.sub_institution or not st.session_state.sub_operator or not st.session_state.sub_substrate_type:
             st.error("Please fill in all required fields: Substrate Number, Institution, Operator, and Substrate Type")
         elif not validate_operator_name(st.session_state.sub_operator):
-            st.error("Operator must include both First Name and Last Name (e.g., Dong Nguyen)")
+            st.error("Operator must include both First Name and Last Name (e.g., Steinkopf Lars)")
         else:
             date_formatted = format_date(st.session_state.sub_clean_date)
             time_formatted = convert_time_to_12hour(st.session_state.sub_clean_time)
@@ -467,7 +467,7 @@ with tab2:
     # Set common default values
     st.session_state.fab_substrate_number = st.session_state.get('fab_substrate_number', "3716-15")
     st.session_state.fab_institution = st.session_state.get('fab_institution', "HZB")
-    st.session_state.fab_operator = st.session_state.get('fab_operator', "Lars Drescher")
+    st.session_state.fab_operator = st.session_state.get('fab_operator', "Steinkopf Lars")
     st.session_state.fab_sequence = st.session_state.get('fab_sequence', "1")
     st.session_state.fab_date = st.session_state.get('fab_date', datetime.now().date())
     st.session_state.fab_time = st.session_state.get('fab_time', "14:01:15")
@@ -894,7 +894,7 @@ with tab3:
     # Set common default values
     st.session_state.treat_substrate_number = st.session_state.get('treat_substrate_number', "3716-15")
     st.session_state.treat_institution = st.session_state.get('treat_institution', "HZB")
-    st.session_state.treat_operator = st.session_state.get('treat_operator', "Dong Nguyen")
+    st.session_state.treat_operator = st.session_state.get('treat_operator', "Steinkopf Lars")
     
     # Set sequence based on method
     if treat_method == "As-deposited":
@@ -1286,4 +1286,3 @@ with tab4:
                     type="primary"
 
                 )
-
