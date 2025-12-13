@@ -1130,7 +1130,7 @@ with tab4:
                     
                     created_date = datetime.now().strftime("%Y%m%d")
                     created_time = datetime.now().strftime("%H%M%S")
-                    operator_formatted = metadata_dict['operator'].replace(' ', '_')
+                    operator_formatted = metadata_dict['operator']
                     csv_filename = f"{metadata_dict['substrate_number']}_{metadata_dict['institution']}_{operator_formatted}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_mapping_xrf_{metadata_dict['xrf_fitting_method']}_original_{created_date}_{created_time}.csv"
                     
                     st.session_state.processed_data = {
@@ -1276,7 +1276,7 @@ with tab4:
                 
                 created_date = datetime.now().strftime("%Y%m%d")
                 created_time = datetime.now().strftime("%H%M%S")
-                operator_formatted = metadata['operator'].replace(' ', '_')
+                operator_formatted = metadata['operator']
                 csv_filename_converted = f"{metadata['substrate_number']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_mapping_xrf_{metadata['xrf_fitting_method']}_{created_date}_{created_time}.csv"
                 
                 st.download_button(
@@ -1287,3 +1287,4 @@ with tab4:
                     type="primary"
 
                 )
+
