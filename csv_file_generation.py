@@ -1114,7 +1114,7 @@ with tab4:
                         'substrate_number': metadata_dict['substrate_number'],
                         'substrate': metadata_dict['substrate'],
                         'sample_description': metadata_dict['sample_description'],
-                        'sample_size': metadata_dict['sample_size'],
+                        'substrate_size': metadata_dict['substrate_size'],
                         'fabrication_method': metadata_dict['fabrication_method'],
                         'treatment_method': metadata_dict['treatment_method'],
                         'treatment_sequence': metadata_dict['treatment_sequence'],
