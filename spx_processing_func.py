@@ -546,7 +546,7 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         "Substrate Number," + metadata['substrate_number'],
         "Substrate," + metadata['substrate'],
         "Sample Description," + metadata['sample_description'],
-        "Sample Size," + metadata['sample_size'],
+        "Substrate Size," + metadata['substrate_size'],
         "Fabrication Method," + metadata['fabrication_method'],
         "Treatment Method," + metadata['treatment_method'],
         "Treatment Sequence," + metadata['treatment_sequence'],
@@ -835,11 +835,11 @@ def render_metadata_section():
             max_chars=500,
             placeholder="Describe components, materials, layers of your samples"
         )
-        sample_size = st.text_input("Sample Size (mm)", value="50x50")
+        substrate_size = st.text_input("Substrate Size (mm)", value="50x50")
         
         st.session_state.update({
             'substrate_number': substrate_number, 'substrate': substrate,
-            'sample_description': sample_description, 'sample_size': sample_size
+            'sample_description': sample_description, 'substrate_size': substrate_size
         })
     
     with col2:
@@ -892,7 +892,7 @@ def render_metadata_section():
     
     return {
         'substrate_number': substrate_number, 'substrate': substrate,
-        'sample_description': sample_description, 'sample_size': sample_size,
+        'sample_description': sample_description, 'substrate_size': substrate_size,
         'fabrication_method': fabrication_method, 'treatment_method': treatment_method,
         'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
         'operator': operator, 'operator_valid': operator_valid,
