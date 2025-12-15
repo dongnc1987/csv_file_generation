@@ -342,7 +342,7 @@ with tab1:
     st.session_state.sub_operator = st.session_state.get('sub_operator', "Steinkopf Lars")
     st.session_state.sub_substrate_type = st.session_state.get('sub_substrate_type', "quartz")
     st.session_state.sub_thickness = st.session_state.get('sub_thickness', "1.1")
-    st.session_state.sub_size = st.session_state.get('sub_size', "50.8x50.8")
+    st.session_state.sub_size = st.session_state.get('sub_size', "50x50")
     st.session_state.sub_materials = st.session_state.get('sub_materials', "SiO2")
     st.session_state.sub_production_batch = st.session_state.get('sub_production_batch', "B123")
     st.session_state.sub_vendor = st.session_state.get('sub_vendor', "Vendor Name")
@@ -1287,4 +1287,5 @@ with tab4:
                     type="primary"
 
                 )
+
 
