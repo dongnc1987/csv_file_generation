@@ -603,7 +603,7 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         layer_elements_sorted = {layer: sorted(list(layer_elements.get(layer, []))) 
                                 for layer in sorted_layers}
         
-        csv_lines.append("total_layer," + str(len(unique_layers)))
+        csv_lines.append("total_material_layer," + str(len(unique_layers)))
         
         # Build Layer header row
         layer_header = ["", "", "", "", ""]
@@ -899,3 +899,4 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
