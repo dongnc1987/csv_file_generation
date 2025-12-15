@@ -546,7 +546,7 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         "Substrate Number," + metadata['substrate_number'],
         "Substrate," + metadata['substrate'],
         "Sample Description," + metadata['sample_description'],
-        "Substrate Size," + metadata['substrate_size'],
+        "Substrate Size (mm)," + metadata['substrate_size'],
         "Fabrication Method," + metadata['fabrication_method'],
         "Treatment Method," + metadata['treatment_method'],
         "Treatment Sequence," + metadata['treatment_sequence'],
@@ -899,4 +899,5 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
 
