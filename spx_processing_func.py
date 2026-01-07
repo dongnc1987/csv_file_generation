@@ -12,6 +12,17 @@ from typing import Dict, List, Optional
 
 
 # ============================================================================
+# CONSTANTS
+# ============================================================================
+
+ELEMENT_SYMBOLS = {
+    13: 'Al', 22: 'Ti', 24: 'Cr', 26: 'Fe', 27: 'Co', 28: 'Ni',
+    29: 'Cu', 42: 'Mo', 45: 'Rh', 46: 'Pd', 47: 'Ag', 74: 'W', 79: 'Au'
+}
+
+
+
+# ============================================================================
 # ATOMIC MASS DATA
 # ============================================================================
 
@@ -258,7 +269,7 @@ def parse_spx_file(file_path: Path) -> Dict:
     tube_current = get_float(xrf_header, 'Current', 0) if xrf_header is not None else 0
     tube_anode = get_int(xrf_header, 'Anode', 45) if xrf_header is not None else 45
 
-    xray_tube_target = ATOMIC_MASSES.get(tube_anode, 'Unknown')
+    xray_tube_target = ELEMENT_SYMBOLS.get(tube_anode, 'Unknown')
     chassis_type = get_text(xrf_header, 'ChassisType') if xrf_header is not None else ''
 
     # Position
@@ -975,4 +986,3 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
-
