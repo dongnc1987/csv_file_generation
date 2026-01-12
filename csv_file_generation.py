@@ -301,7 +301,9 @@ def generate_treatment_filename(substrate_number, institution, operator, sequenc
     operator_formatted = operator
     method_map = {
         'Annealing': 'Annealing',
-        'As-deposited': 'As-deposited'
+        'As-deposited': 'As-deposited',
+        'Storing-in-Glovebox': 'Storing-in-Glovebox',
+        'Storing-out-Glovebox': 'Storing-out-Glovebox'
     }
     method_formatted = method_map.get(method, method)
     current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -888,7 +890,7 @@ with tab3:
     
     treat_method = st.selectbox(
         "Select Treatment Method",
-        ["Annealing", "As-deposited"]
+        ["Annealing", "As-deposited", "Storing-in-Glovebox", "Storing-out-Glovebox"]
     )
     
     # Set common default values
@@ -924,7 +926,7 @@ with tab3:
                 disabled=True,
                 help="As-deposited always uses sequence 0"
             )
-            st.session_state.treat_sequence = "0"  # Force it to be 0
+            st.session_state.treat_sequence = "0"
         else:
             st.session_state.treat_sequence = st.text_input(
                 "Treatment Sequence", 
@@ -938,33 +940,33 @@ with tab3:
     
     st.divider()
     
-    # Treatment Parameters (same for both methods)
+    # Treatment Parameters
     st.subheader(f"{treat_method} Parameters")
     
-    # Set default values based on method
-    if treat_method == "As-deposited":
-        default_temp = "25"
-        default_duration = "0"
-        default_humidity = "0"
-        default_oxygen = "0"
-        default_gas = "Air"
-        default_pressure = "1013"
-    else:  # Annealing
-        default_temp = "150"
-        default_duration = "3600"
-        default_humidity = "100"
-        default_oxygen = "50"
-        default_gas = "N2"
-        default_pressure = "1013"
-    
-    # Initialize default values (use different keys to avoid conflicts)
+    # Initialize default values based on stored values or method-specific defaults
     default_place = st.session_state.get('treat_place_val', "Lab Room 101")
-    default_temp = st.session_state.get('treat_temp_val', default_temp)
-    default_duration = st.session_state.get('treat_dur_val', default_duration)
-    default_humidity = st.session_state.get('treat_hum_val', default_humidity)
-    default_oxygen = st.session_state.get('treat_o2_val', default_oxygen)
-    default_gas = st.session_state.get('treat_gas_val', default_gas)
-    default_pressure = st.session_state.get('treat_press_val', default_pressure)
+    
+    if treat_method == "As-deposited":
+        default_temp = st.session_state.get('treat_temp_val', "25")
+        default_duration = st.session_state.get('treat_dur_val', "0")
+        default_humidity = st.session_state.get('treat_hum_val', "0")
+        default_oxygen = st.session_state.get('treat_o2_val', "0")
+        default_gas = st.session_state.get('treat_gas_val', "Air")
+        default_pressure = st.session_state.get('treat_press_val', "1013")
+    elif treat_method in ["Storing-in-Glovebox", "Storing-out-Glovebox"]:
+        default_temp = st.session_state.get('treat_temp_val', "25")
+        default_duration = st.session_state.get('treat_dur_val', "86400")
+        default_humidity = st.session_state.get('treat_hum_val', "100")
+        default_oxygen = st.session_state.get('treat_o2_val', "50")
+        default_gas = st.session_state.get('treat_gas_val', "N2")
+        default_pressure = st.session_state.get('treat_press_val', "1013")
+    else:  # Annealing
+        default_temp = st.session_state.get('treat_temp_val', "150")
+        default_duration = st.session_state.get('treat_dur_val', "3600")
+        default_humidity = st.session_state.get('treat_hum_val', "100")
+        default_oxygen = st.session_state.get('treat_o2_val', "50")
+        default_gas = st.session_state.get('treat_gas_val', "N2")
+        default_pressure = st.session_state.get('treat_press_val', "1013")
     
     col1, col2, col3 = st.columns(3)
     
@@ -983,6 +985,8 @@ with tab3:
     
     if treat_method == "As-deposited":
         st.info("As-deposited represents samples without post-deposition treatment (sequence is always 0). Environmental parameters can be left at default/ambient values.")
+    elif treat_method in ["Storing-in-Glovebox", "Storing-out-Glovebox"]:
+        st.info(f"{treat_method}: Samples stored at room temperature. Adjust duration, humidity, and oxygen levels as needed.")
     
     st.divider()
     
@@ -1048,6 +1052,7 @@ with tab3:
                 
                 with st.expander("Preview CSV Content"):
                     st.text(csv_content)
+
 
 with tab4:
     st.header("SPX & XRF CSV File Generation")
