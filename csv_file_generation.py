@@ -893,6 +893,21 @@ with tab3:
         ["Annealing", "As-deposited", "Storing-in-Glovebox", "Storing-out-Glovebox"]
     )
     
+    # Detect method change and reset defaults
+    if 'previous_treat_method' not in st.session_state:
+        st.session_state.previous_treat_method = treat_method
+    
+    if st.session_state.previous_treat_method != treat_method:
+        # Clear stored values when method changes
+        st.session_state.pop('treat_place_val', None)
+        st.session_state.pop('treat_temp_val', None)
+        st.session_state.pop('treat_dur_val', None)
+        st.session_state.pop('treat_hum_val', None)
+        st.session_state.pop('treat_o2_val', None)
+        st.session_state.pop('treat_gas_val', None)
+        st.session_state.pop('treat_press_val', None)
+        st.session_state.previous_treat_method = treat_method
+    
     # Set common default values
     st.session_state.treat_substrate_number = st.session_state.get('treat_substrate_number', "3716-15")
     st.session_state.treat_institution = st.session_state.get('treat_institution', "HZB")
@@ -943,7 +958,7 @@ with tab3:
     # Treatment Parameters
     st.subheader(f"{treat_method} Parameters")
     
-    # Initialize default values based on stored values or method-specific defaults
+    # Set method-specific defaults (only use session state if it exists, otherwise use method defaults)
     default_place = st.session_state.get('treat_place_val', "Lab Room 101")
     
     if treat_method == "As-deposited":
@@ -1292,5 +1307,6 @@ with tab4:
                     type="primary"
 
                 )
+
 
 
