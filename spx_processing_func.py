@@ -338,30 +338,9 @@ def read_xrf_xls(uploaded_file) -> pd.DataFrame:
         # Data starts from row 2
         data = df_raw.iloc[2:].reset_index(drop=True)
         
-        # Find layer column indices - MORE FLEXIBLE DETECTION
-        layer_indices = []
-        for i, layer_name in enumerate(layer_row):
-            if pd.notna(layer_name):
-                layer_str = str(layer_name).strip()
-                # Check for various layer formats
-                if any(keyword in layer_str.lower() for keyword in ['layer', 'schicht', 'couche']):
-                    layer_indices.append(i)
-        
-        # If no layers found in row 0, try detecting from headers
-        if not layer_indices:
-            # Look for column groups based on composition patterns
-            for i, header in enumerate(headers):
-                if pd.notna(header) and '[%]' in str(header):
-                    # This might be start of a layer
-                    if i not in layer_indices:
-                        layer_indices.append(i)
-        
-        # If still no layers, assume single layer starting at column 1
-        if not layer_indices:
-            layer_indices = [1]
-        
-        # Remove duplicates and sort
-        layer_indices = sorted(list(set(layer_indices)))
+        # Find layer column indices
+        layer_indices = [i for i, layer_name in enumerate(layer_row) 
+                        if pd.notna(layer_name) and 'Layer' in str(layer_name)]
         
         # Parse all rows
         all_rows = []
@@ -373,7 +352,7 @@ def read_xrf_xls(uploaded_file) -> pd.DataFrame:
             if pd.isna(spectrum):
                 continue
             spectrum = str(spectrum).strip()
-            if not spectrum or any(x in spectrum.lower() for x in ['mean', 'average', 'std', 'spectrum', 'mittel']):
+            if not spectrum or any(x in spectrum.lower() for x in ['mean', 'average', 'std', 'spectrum']):
                 continue
             
             # Process each layer
@@ -390,7 +369,7 @@ def read_xrf_xls(uploaded_file) -> pd.DataFrame:
                     if pd.isna(header):
                         continue
                     
-                    header_str = str(header).strip()
+                    header_str = str(header)
                     value = data.iloc[row_idx, col_idx]
                     
                     if pd.isna(value):
@@ -402,33 +381,25 @@ def read_xrf_xls(uploaded_file) -> pd.DataFrame:
                     except (ValueError, TypeError):
                         continue
                     
-                    # Check if thickness - MORE FLEXIBLE DETECTION
-                    if any(keyword in header_str.lower() for keyword in ['thickn', 'dicke', 'épaisseur', 'thickness']):
+                    # Check if thickness
+                    if 'Thickn' in header_str or 'thickness' in header_str.lower():
                         thickness = value_float
-                    # Check if composition - MORE FLEXIBLE DETECTION
-                    elif any(bracket in header_str for bracket in ['[%]', '(%)', '[at%]', '[wt%]', '(at%)', '(wt%)']):
-                        # Extract element name
-                        element = header_str
-                        for bracket in ['[%]', '(%)', '[at%]', '[wt%]', '(at%)', '(wt%)', '[At%]', '[Wt%]']:
-                            element = element.replace(bracket, '')
-                        element = element.strip()
-                        
-                        # Only add if element name is valid (1-3 characters, starts with capital letter)
-                        if element and 1 <= len(element) <= 3 and element[0].isupper():
-                            composition[element] = value_float
+                    # Check if composition
+                    elif '[%]' in header_str or '(%)' in header_str:
+                        element = header_str.replace('[%]', '').replace('(%)', '').strip()
+                        composition[element] = value_float
                 
-                # Only add row if we have either thickness or composition
-                if thickness is not None or composition:
-                    row_data = {
-                        'spectrum': spectrum,
-                        'layer': f'layer{layer_num}',
-                        'thickness_nm': thickness
-                    }
-                    
-                    for elem, val in composition.items():
-                        row_data[f'{elem} (%)'] = val
-                    
-                    all_rows.append(row_data)
+                # Add row
+                row_data = {
+                    'spectrum': spectrum,
+                    'layer': f'layer{layer_num}',
+                    'thickness_nm': thickness
+                }
+                
+                for elem, val in composition.items():
+                    row_data[f'{elem} (%)'] = val
+                
+                all_rows.append(row_data)
         
         if not all_rows:
             raise ValueError("No valid data extracted from XLS file")
@@ -1014,5 +985,3 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
-
-
