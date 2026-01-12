@@ -931,8 +931,7 @@ def render_metadata_section():
     
     with col2:
         fabrication_method = st.selectbox("Fabrication Method", 
-            ["CVD", "PVD", "PLD", "Sputtering", "Thermal Evaporation",
-             "E-beam", "Spin Coating", "Sol-gel", "Slot-Die Coating", "Inkjet Printing"], 
+            ["PVD-J", "Sputtering", "Tube Furnace", "RTP", "PLD", "PVD-P"], 
             index=1)
         treatment_method = st.selectbox("Treatment Method", 
             ["As-deposited", "Annealing", "UV-Ozone", "Irradiation", "Plasma"], index=0)
@@ -986,3 +985,4 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
