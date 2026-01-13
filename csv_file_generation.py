@@ -893,21 +893,6 @@ with tab3:
         ["Annealing", "As-deposited", "Storing-in-Glovebox", "Storing-out-Glovebox"]
     )
     
-    # Detect method change and reset defaults
-    if 'previous_treat_method' not in st.session_state:
-        st.session_state.previous_treat_method = treat_method
-    
-    if st.session_state.previous_treat_method != treat_method:
-        # Clear stored values when method changes
-        st.session_state.pop('treat_place_val', None)
-        st.session_state.pop('treat_temp_val', None)
-        st.session_state.pop('treat_dur_val', None)
-        st.session_state.pop('treat_hum_val', None)
-        st.session_state.pop('treat_o2_val', None)
-        st.session_state.pop('treat_gas_val', None)
-        st.session_state.pop('treat_press_val', None)
-        st.session_state.previous_treat_method = treat_method
-    
     # Set common default values
     st.session_state.treat_substrate_number = st.session_state.get('treat_substrate_number', "3716-15")
     st.session_state.treat_institution = st.session_state.get('treat_institution', "HZB")
@@ -958,45 +943,46 @@ with tab3:
     # Treatment Parameters
     st.subheader(f"{treat_method} Parameters")
     
-    # Set method-specific defaults (only use session state if it exists, otherwise use method defaults)
-    default_place = st.session_state.get('treat_place_val', "Lab Room 101")
-    
+    # Set method-specific defaults
     if treat_method == "As-deposited":
-        default_temp = st.session_state.get('treat_temp_val', "25")
-        default_duration = st.session_state.get('treat_dur_val', "0")
-        default_humidity = st.session_state.get('treat_hum_val', "0")
-        default_oxygen = st.session_state.get('treat_o2_val', "0")
-        default_gas = st.session_state.get('treat_gas_val', "Air")
-        default_pressure = st.session_state.get('treat_press_val', "1013")
+        default_place = "Lab Room 101"
+        default_temp = "25"
+        default_duration = "0"
+        default_humidity = "0"
+        default_oxygen = "0"
+        default_gas = "Air"
+        default_pressure = "1013"
     elif treat_method in ["Storing-in-Glovebox", "Storing-out-Glovebox"]:
-        default_temp = st.session_state.get('treat_temp_val', "25")
-        default_duration = st.session_state.get('treat_dur_val', "86400")
-        default_humidity = st.session_state.get('treat_hum_val', "100")
-        default_oxygen = st.session_state.get('treat_o2_val', "50")
-        default_gas = st.session_state.get('treat_gas_val', "N2")
-        default_pressure = st.session_state.get('treat_press_val', "1013")
+        default_place = "Lab Room 101"
+        default_temp = "25"
+        default_duration = "86400"
+        default_humidity = "100"
+        default_oxygen = "50"
+        default_gas = "N2"
+        default_pressure = "1013"
     else:  # Annealing
-        default_temp = st.session_state.get('treat_temp_val', "150")
-        default_duration = st.session_state.get('treat_dur_val', "3600")
-        default_humidity = st.session_state.get('treat_hum_val', "100")
-        default_oxygen = st.session_state.get('treat_o2_val', "50")
-        default_gas = st.session_state.get('treat_gas_val', "N2")
-        default_pressure = st.session_state.get('treat_press_val', "1013")
+        default_place = "Lab Room 101"
+        default_temp = "150"
+        default_duration = "3600"
+        default_humidity = "100"
+        default_oxygen = "50"
+        default_gas = "N2"
+        default_pressure = "1013"
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        treat_place = st.text_input("Treatment Place", value=default_place, key="treat_place_input")
-        treat_temperature = st.text_input("Temperature (°C)", value=default_temp, key="treat_temp_input")
-        treat_duration = st.text_input("Duration (seconds)", value=default_duration, key="treat_dur_input")
+        treat_place = st.text_input("Treatment Place", value=default_place, key=f"treat_place_input_{treat_method}")
+        treat_temperature = st.text_input("Temperature (°C)", value=default_temp, key=f"treat_temp_input_{treat_method}")
+        treat_duration = st.text_input("Duration (seconds)", value=default_duration, key=f"treat_dur_input_{treat_method}")
     
     with col2:
-        treat_humidity = st.text_input("Humidity (ppm)", value=default_humidity, key="treat_hum_input")
-        treat_oxygen = st.text_input("O2 Concentration (ppm)", value=default_oxygen, key="treat_o2_input")
+        treat_humidity = st.text_input("Humidity (ppm)", value=default_humidity, key=f"treat_hum_input_{treat_method}")
+        treat_oxygen = st.text_input("O2 Concentration (ppm)", value=default_oxygen, key=f"treat_o2_input_{treat_method}")
     
     with col3:
-        treat_gas = st.text_input("Gas", value=default_gas, key="treat_gas_input")
-        treat_pressure = st.text_input("Pressure (mbar)", value=default_pressure, key="treat_press_input")
+        treat_gas = st.text_input("Gas", value=default_gas, key=f"treat_gas_input_{treat_method}")
+        treat_pressure = st.text_input("Pressure (mbar)", value=default_pressure, key=f"treat_press_input_{treat_method}")
     
     if treat_method == "As-deposited":
         st.info("As-deposited represents samples without post-deposition treatment (sequence is always 0). Environmental parameters can be left at default/ambient values.")
@@ -1036,15 +1022,6 @@ with tab3:
                     'gas': treat_gas,
                     'pressure_mbar': treat_pressure
                 }
-                
-                # Save current values to session state for next time
-                st.session_state.treat_place_val = treat_place
-                st.session_state.treat_temp_val = treat_temperature
-                st.session_state.treat_dur_val = treat_duration
-                st.session_state.treat_hum_val = treat_humidity
-                st.session_state.treat_o2_val = treat_oxygen
-                st.session_state.treat_gas_val = treat_gas
-                st.session_state.treat_press_val = treat_pressure
                 
                 csv_content = generate_treatment_csv_content(common_data, specific_data)
                 
@@ -1307,6 +1284,7 @@ with tab4:
                     type="primary"
 
                 )
+
 
 
 
