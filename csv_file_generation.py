@@ -946,7 +946,7 @@ with tab3:
     # Set method-specific defaults
     if treat_method == "As-deposited":
         default_place = "Lab Room 101"
-        default_temp = "Room Temperature"
+        default_temp = "Room temperature"
         default_duration = "0"
         default_humidity = "0"
         default_oxygen = "0"
@@ -954,7 +954,7 @@ with tab3:
         default_pressure = "1013"
     elif treat_method in ["Storing-in-Glovebox", "Storing-out-Glovebox"]:
         default_place = "Lab Room 101"
-        default_temp = "25"
+        default_temp = "Room temperature"
         default_duration = "Overnight"
         default_humidity = "100"
         default_oxygen = "50"
@@ -1284,6 +1284,7 @@ with tab4:
                     type="primary"
 
                 )
+
 
 
 
