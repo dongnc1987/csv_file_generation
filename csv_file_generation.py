@@ -890,7 +890,7 @@ with tab3:
     
     treat_method = st.selectbox(
         "Select Treatment Method",
-        ["Annealing", "As-deposited", "Storing-in-Glovebox", "Storing-out-Glovebox"]
+        ["As-deposited", "Annealing", "Storing-in-Glovebox", "Storing-out-Glovebox"]
     )
     
     # Set common default values
@@ -1284,6 +1284,7 @@ with tab4:
                     type="primary"
 
                 )
+
 
 
 
