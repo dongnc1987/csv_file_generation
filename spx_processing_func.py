@@ -949,7 +949,7 @@ def render_metadata_section():
         x_method_name = st.text_input(
             "X-Method Name", 
             value="", 
-            placeholder="Please write the X-Method name")
+            placeholder="eg., CSBR_BAYESSERIES.xadf")
         x_method_description = st.text_area(
             "X-Method Description",
             value="Perovskite solar cell with full stacks",
@@ -996,6 +996,7 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
 
 
 
