@@ -945,6 +945,12 @@ def render_metadata_section():
             ))
         
         air_exposure_duration = st.text_input("Air exposure Duration (min)", value="30")
+        x_method_description = st.text_area(
+            "X-Method Description",
+            value="Perovskite solar cell with full stacks",
+            max_chars=500,
+            placeholder="Copy and Paste the inside content of a file .xadf"
+        )
         
         st.session_state.update({
             'fabrication_method': fabrication_method, 'treatment_method': treatment_method,
@@ -985,6 +991,7 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
 
 
 
