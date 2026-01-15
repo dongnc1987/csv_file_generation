@@ -966,7 +966,7 @@ def render_metadata_section():
         
         institution = st.text_input("Institution", value=st.session_state.institution)
         measurement_type = st.text_input("Measurement Type", value="Mapping XRF")
-        xrf_fitting_method = st.selectbox("XRF Fitting Method", ["Bayes", "Bayes-series", "Bayes-profile", "Fit", "Fit-series", "Fit-group"], index=0)
+        xrf_fitting_method = st.selectbox("Deconvolution Settings for XRF", ["Bayes", "Bayes-series", "Bayes-profile", "Fit", "Fit-series", "Fit-group"], index=0)
         
         st.session_state.update({
             'operator': operator, 'operator_valid': operator_valid,
@@ -985,4 +985,5 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
 
