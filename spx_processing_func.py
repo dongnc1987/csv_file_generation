@@ -948,7 +948,7 @@ def render_metadata_section():
 
         x_method_name = st.text_input(
             "X-Method Name", 
-            value="", 
+            value="CSBR_BAYESSERIES.xadf", 
             placeholder="eg., CSBR_BAYESSERIES.xadf")
         x_method_description = st.text_area(
             "X-Method Description",
@@ -996,6 +996,7 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
 
 
 
