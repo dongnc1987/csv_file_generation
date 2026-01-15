@@ -635,7 +635,9 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         "Institution," + metadata['institution'],
         "Measurement Type," + metadata['measurement_type'],
         "Spectrometer," + metadata.get('spectrometer', 'Bruker M4 Tornado'),
-        "XRF Fitting Method," + metadata.get('xrf_fitting_method', 'Series')
+        "XRF Fitting Method," + metadata.get('xrf_fitting_method', 'Series'),
+        "X Method Name," + metadata['x_method_name'],
+        "X Method Description," + metadata['x_method_description'],
     ])
     
     if combined_data:
@@ -952,7 +954,7 @@ def render_metadata_section():
             placeholder="eg., CSBR_BAYESSERIES.xadf")
         x_method_description = st.text_area(
             "X-Method Description",
-            value="Perovskite solar cell with full stacks",
+            value="",
             max_chars=100000,
             placeholder="Copy and Paste the inside content of a file .xadf"
         )
@@ -996,11 +998,3 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
-
-
-
-
-
-
-
-
