@@ -945,6 +945,11 @@ def render_metadata_section():
             ))
         
         air_exposure_duration = st.text_input("Air exposure Duration (min)", value="30")
+
+        x_method_name = st.text_input(
+            "X-Method Name", 
+            value="", 
+            placeholder="Please write the X-Method name")
         x_method_description = st.text_area(
             "X-Method Description",
             value="Perovskite solar cell with full stacks",
@@ -991,6 +996,7 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
 
 
 
