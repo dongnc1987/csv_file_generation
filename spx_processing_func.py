@@ -955,7 +955,7 @@ def render_metadata_section():
         operator = st.text_input(
             "Operator (First Name Last Name)",
             value=st.session_state.operator,
-            placeholder="e.g., Dong Nguyen"
+            placeholder="e.g., Thomas Unold"
         )
         
         operator_valid = bool(operator and len(operator.split()) >= 2)
@@ -985,5 +985,6 @@ def render_metadata_section():
         'institution': institution, 'measurement_type': measurement_type,
         'xrf_fitting_method': xrf_fitting_method
     }
+
 
 
