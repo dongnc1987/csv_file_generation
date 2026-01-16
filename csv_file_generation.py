@@ -1107,6 +1107,7 @@ with tab4:
                     combined_data = match_spx_with_xrf_csv(spx_data_list, xrf_data_list)
                     progress_bar.progress(0.9)
                     
+                    
                     metadata = {
                         'substrate_number': metadata_dict['substrate_number'],
                         'substrate': metadata_dict['substrate'],
@@ -1121,6 +1122,8 @@ with tab4:
                         'measurement_type': metadata_dict['measurement_type'],
                         'spectrometer': 'Bruker M4 Tornado',
                         'xrf_fitting_method': metadata_dict['xrf_fitting_method'],
+                        'x_method_name': metadata_dict['x_method_name'],
+                        'x_method_description': metadata_dict['x_method_description']
                     }
                     
                     csv_content = create_combined_csv_horizontal_layers(combined_data, metadata, None)
@@ -1284,10 +1287,4 @@ with tab4:
                     type="primary"
 
                 )
-
-
-
-
-
-
 
