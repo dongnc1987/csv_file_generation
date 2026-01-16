@@ -636,8 +636,6 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         "Measurement Type," + metadata['measurement_type'],
         "Spectrometer," + metadata.get('spectrometer', 'Bruker M4 Tornado'),
         "XRF Fitting Method," + metadata.get('xrf_fitting_method', 'Series'),
-        "X Method Name," + metadata['x_method_name'],
-        "X Method Description," + metadata['x_method_description'],
     ])
     
     if combined_data:
@@ -1002,3 +1000,4 @@ def render_metadata_section():
         'xrf_fitting_method': xrf_fitting_method,
         'x_method_name': x_method_name, 'x_method_description': x_method_description
     }
+
