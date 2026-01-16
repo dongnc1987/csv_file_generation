@@ -905,7 +905,9 @@ def render_metadata_section():
         'operator': "",
         'operator_valid': False,
         'institution': "HZB",
-        'xrf_fitting_method': "Series"
+        'xrf_fitting_method': "Series",
+        'x_method_name': "CSBR_BAYESSERIES.xadf",
+        'x_method_description': ""
     }
     
     for key, value in defaults.items():
@@ -950,18 +952,19 @@ def render_metadata_section():
 
         x_method_name = st.text_input(
             "X-Method Name", 
-            value="CSBR_BAYESSERIES.xadf", 
+            value=st.session_state.x_method_name, 
             placeholder="eg., CSBR_BAYESSERIES.xadf")
         x_method_description = st.text_area(
             "X-Method Description",
-            value="",
+            value=st.session_state.x_method_description,
             max_chars=100000,
             placeholder="Copy and Paste the inside content of a file .xadf"
         )
         
         st.session_state.update({
             'fabrication_method': fabrication_method, 'treatment_method': treatment_method,
-            'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration
+            'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
+            'x_method_name': x_method_name, 'x_method_description': x_method_description
         })
     
     with col3:
@@ -996,5 +999,6 @@ def render_metadata_section():
         'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
         'operator': operator, 'operator_valid': operator_valid,
         'institution': institution, 'measurement_type': measurement_type,
-        'xrf_fitting_method': xrf_fitting_method
+        'xrf_fitting_method': xrf_fitting_method,
+        'x_method_name': x_method_name, 'x_method_description': x_method_description
     }
