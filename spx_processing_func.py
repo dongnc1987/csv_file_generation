@@ -616,29 +616,37 @@ def convert_xrf_to_optical(combined_data: List[Dict], xrf_bounds: Dict, optical_
 # CSV EXPORT - COMBINED ALL LAYERS
 # ============================================================================
 
+
 def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: Dict,
                                           converted_data: Optional[List[Dict]] = None) -> str:
-    """Create CSV with one row per SPX file, all layers as horizontal columns with both wt% and at%"""
+    """Create CSV with one row per SPX file, all layers as horizontal columns with atomic%"""
     csv_lines = []
     
     # Metadata section
     csv_lines.extend([
-        "Substrate Number," + metadata['substrate_number'],
-        "Substrate," + metadata['substrate'],
-        "Sample Description," + metadata['sample_description'],
-        "Substrate Size (mm)," + metadata['substrate_size'],
-        "Fabrication Method," + metadata['fabrication_method'],
-        "Treatment Method," + metadata['treatment_method'],
-        "Treatment Sequence," + metadata['treatment_sequence'],
-        "Air exposure Duration (min)," + metadata['air_exposure_duration'],
-        "Operator," + metadata['operator'],
-        "Institution," + metadata['institution'],
-        "Measurement Type," + metadata['measurement_type'],
-        "Spectrometer," + metadata.get('spectrometer', 'Bruker M4 Tornado'),
-        "XRF Fitting Method," + metadata.get('xrf_fitting_method', 'Series'),
-        "X Method Name," + metadata['x_method_name'],
-        "X Method Description," + metadata['x_method_description'],
+        "Substrate Number," + str(metadata['substrate_number']),
+        "Substrate," + str(metadata['substrate']),
+        "Sample Description," + str(metadata['sample_description']),
+        "Substrate Size (mm)," + str(metadata['substrate_size']),
+        "Fabrication Method," + str(metadata['fabrication_method']),
+        "Treatment Method," + str(metadata['treatment_method']),
+        "Treatment Sequence," + str(metadata['treatment_sequence']),
+        "Air exposure Duration (min)," + str(metadata['air_exposure_duration']),
+        "Operator," + str(metadata['operator']),
+        "Institution," + str(metadata['institution']),
+        "Measurement Type," + str(metadata['measurement_type']),
+        "Spectrometer," + str(metadata.get('spectrometer', 'Bruker M4 Tornado')),
+        "X Method Name," + str(metadata['x_method_name']),
     ])
+    
+    # Add X Method Description (XADF content)
+    x_method_desc = metadata.get('x_method_description', '')
+    if x_method_desc and x_method_desc.strip():
+        # Properly escape the content for CSV
+        x_method_desc_escaped = x_method_desc.replace('"', '""')
+        csv_lines.append(f'X Method Description,"{x_method_desc_escaped}"')
+    else:
+        csv_lines.append('X Method Description,""')
     
     if combined_data:
         # Calculate medians
@@ -692,7 +700,6 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
         for layer in sorted_layers:
             layer_num = layer.replace('layer', '')
             layer_header.append(f"Layer {layer_num}")
-            # Now we need columns for: thickness + (wt% + at%) per element
             num_columns = 1 + len(layer_elements_sorted[layer])
             layer_header.extend([""] * (num_columns - 1))
         
@@ -749,11 +756,10 @@ def create_combined_csv_horizontal_layers(combined_data: List[Dict], metadata: D
                     composition_at = convert_wt_to_at_percent(ld['composition'])
                     
                     for elem in layer_elements_sorted[layer]:
-                        # Atomic percentage only
                         at_value = composition_at.get(elem, 0)
                         row_data.append(f"{at_value:.2f}" if at_value > 0 else "0")
                 else:
-                    # Empty layer: empty thickness + empty wt% and at% for all elements
+                    # Empty layer
                     row_data.extend([""] * (1 + len(layer_elements_sorted[layer])))
             
             # Add spectrum data
@@ -895,7 +901,6 @@ def plot_spectrum(data: Dict, title: str, yscale: str = "linear"):
 # ============================================================================
 # METADATA UI
 # ============================================================================
-
 def render_metadata_section():
     """Render metadata input section"""
     
@@ -905,7 +910,6 @@ def render_metadata_section():
         'operator': "",
         'operator_valid': False,
         'institution': "HZB",
-        'xrf_fitting_method': "Series",
         'x_method_name': "CSBR_BAYESSERIES.xadf",
         'x_method_description': ""
     }
@@ -949,22 +953,12 @@ def render_metadata_section():
             ))
         
         air_exposure_duration = st.text_input("Air exposure Duration (min)", value="30")
-
-        x_method_name = st.text_input(
-            "X-Method Name", 
-            value=st.session_state.x_method_name, 
-            placeholder="eg., CSBR_BAYESSERIES.xadf")
-        x_method_description = st.text_area(
-            "X-Method Description",
-            value=st.session_state.x_method_description,
-            max_chars=100000,
-            placeholder="Copy and Paste the inside content of a file .xadf"
-        )
+        institution = st.text_input("Institution", value=st.session_state.institution)
         
         st.session_state.update({
             'fabrication_method': fabrication_method, 'treatment_method': treatment_method,
             'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
-            'x_method_name': x_method_name, 'x_method_description': x_method_description
+            'institution': institution
         })
     
     with col3:
@@ -980,14 +974,24 @@ def render_metadata_section():
         elif not operator:
             st.warning("Operator name is required")
         
-        institution = st.text_input("Institution", value=st.session_state.institution)
         measurement_type = st.text_input("Measurement Type", value="Mapping XRF")
-        xrf_fitting_method = st.selectbox("Deconvolution Settings for XRF", ["Bayes", "Bayes-series", "Bayes-profile", "Fit", "Fit-series", "Fit-group"], index=0)
+        
+        x_method_name = st.text_input(
+            "X-Method Name", 
+            value=st.session_state.x_method_name, 
+            placeholder="e.g., CSBR_BAYESSERIES.xadf")
+        
+        x_method_description = st.text_area(
+            "X-Method Description",
+            value=st.session_state.x_method_description,
+            max_chars=500,
+            placeholder="Describe somethings changed in your used xadf file."""
+        )
         
         st.session_state.update({
             'operator': operator, 'operator_valid': operator_valid,
-            'institution': institution, 'measurement_type': measurement_type,
-            'xrf_fitting_method': xrf_fitting_method
+            'measurement_type': measurement_type,
+            'x_method_name': x_method_name, 'x_method_description': x_method_description
         })
     
     st.markdown("---")
@@ -999,6 +1003,5 @@ def render_metadata_section():
         'treatment_sequence': treatment_sequence, 'air_exposure_duration': air_exposure_duration,
         'operator': operator, 'operator_valid': operator_valid,
         'institution': institution, 'measurement_type': measurement_type,
-        'xrf_fitting_method': xrf_fitting_method,
         'x_method_name': x_method_name, 'x_method_description': x_method_description
     }
