@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import re
-
+from pathlib import Path
 
 from spx_processing_func import *
 
@@ -1053,24 +1053,27 @@ with tab4:
         st.session_state.processed_data = None
     
     metadata_dict = render_metadata_section()
-    
+       
+    # File upload section - 2 columns
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("##### XRF Data (XLS)")
         xrf_xls_file = st.file_uploader(
             "Upload XRF XLS File", type=["xls", "xlsx"],
-            help="Upload the XRF analysis results XLS/XLSX file"
+            help="Upload the XRF analysis results XLS/XLSX file",
+            key="xrf_uploader"
         )
-    
+
     with col2:
         st.markdown("##### SPX Files (ZIP)")
         spx_zip_file = st.file_uploader(
             "Upload ZIP file containing SPX files", type=['zip'],
-            help="Upload a ZIP file with all SPX spectrum files"
+            help="Upload a ZIP file with all SPX spectrum files",
+            key="spx_uploader"
         )
     
-    if st.button("Combine XRF and SPX", type="primary"):
+    if st.button("Combine XRF and SPX", type="primary", key="combine_button"):
         if not metadata_dict['operator_valid']:
             st.error("Please fix the operator name before processing")
         elif xrf_xls_file is None or spx_zip_file is None:
@@ -1079,7 +1082,9 @@ with tab4:
             progress_bar = st.progress(0)
             status_text = st.empty()
             
-            try:
+            try:           
+                progress_bar.progress(0.1)
+                
                 status_text.text("Reading XRF XLS file...")
                 xrf_df = read_xrf_xls(xrf_xls_file)
                 xrf_data_list = parse_xrf_xls_to_dict(xrf_df)
@@ -1105,9 +1110,11 @@ with tab4:
                     
                     status_text.text("Matching SPX with XRF data...")
                     combined_data = match_spx_with_xrf_csv(spx_data_list, xrf_data_list)
-                    progress_bar.progress(0.9)
+                    progress_bar.progress(0.85)
                     
+                    status_text.text("Generating CSV with metadata...")
                     
+                    # Prepare metadata
                     metadata = {
                         'substrate_number': metadata_dict['substrate_number'],
                         'substrate': metadata_dict['substrate'],
@@ -1121,18 +1128,23 @@ with tab4:
                         'institution': metadata_dict['institution'],
                         'measurement_type': metadata_dict['measurement_type'],
                         'spectrometer': 'Bruker M4 Tornado',
-                        'xrf_fitting_method': metadata_dict['xrf_fitting_method'],
                         'x_method_name': metadata_dict['x_method_name'],
                         'x_method_description': metadata_dict['x_method_description']
                     }
-                    
+                                        
+                    # Generate CSV content
                     csv_content = create_combined_csv_horizontal_layers(combined_data, metadata, None)
                     
                     created_date = datetime.now().strftime("%Y%m%d")
                     created_time = datetime.now().strftime("%H%M%S")
-                    operator_formatted = metadata_dict['operator']
-                    csv_filename = f"{metadata_dict['substrate_number']}_{metadata_dict['institution']}_{operator_formatted}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_mapping_xrf_{metadata_dict['xrf_fitting_method']}_original_{created_date}_{created_time}.csv"
-                    
+                    operator_formatted = metadata_dict['operator'].replace(' ', '_')
+                
+                    x_method_base = Path(metadata['x_method_name']).stem  # Remove .xadf extension
+                    measurement_type_clean = metadata_dict['measurement_type'].lower().replace(' ', '_')
+
+                    csv_filename = f"{metadata_dict['substrate_number']}_{metadata_dict['institution']}_{operator_formatted}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_{measurement_type_clean}_{x_method_base}_original_{created_date}_{created_time}.csv"                
+                                    
+                    # Store in session state
                     st.session_state.processed_data = {
                         'combined_data': combined_data,
                         'csv_content': csv_content,
@@ -1149,7 +1161,9 @@ with tab4:
                     
                     unique_spx = len(set(d['spx_name'] for d in combined_data))
                     matched_count = len(set(d['spx_name'] for d in combined_data if d['matched']))
+                    
                     st.success(f"Successfully processed {unique_spx} SPX files! ({matched_count} matched with XRF)")
+
                     
                     import shutil
                     shutil.rmtree(temp_dir, ignore_errors=True)
@@ -1159,6 +1173,7 @@ with tab4:
                 import traceback
                 st.code(traceback.format_exc())
     
+    # Display section - shows combined data and spectrum viewer
     if st.session_state.processed_data is not None:
         processed = st.session_state.processed_data
         combined_data = processed['combined_data']
@@ -1185,10 +1200,9 @@ with tab4:
 
             if combined_data:
                 unique_spx_files = sorted(list(set(d['spx_name'] for d in combined_data)))
-                selected_file = st.selectbox("Select file to view spectrum", unique_spx_files, index=0)
+                selected_file = st.selectbox("Select file to view spectrum", unique_spx_files, index=0, key="spectrum_selector")
                 
-                # Scale selection
-                scale_option = st.radio("Y-axis scale", ["Linear", "Logarithmic"], index=0, horizontal=True)
+                scale_option = st.radio("Y-axis scale", ["Linear", "Logarithmic"], index=0, horizontal=True, key="yscale_radio")
                 yscale = "log" if scale_option == "Logarithmic" else "linear"
 
                 selected_data = next(d for d in combined_data if d['spx_name'] == selected_file)
@@ -1212,12 +1226,17 @@ with tab4:
         
         st.markdown("---")
         st.markdown("### Download CSV (Original XRF Coordinates)")
-        st.download_button(
-            label="Download CSV File",
-            data=processed['csv_content'],
-            file_name=processed['csv_filename'],
-            mime="text/csv"
-        )
+        
+        col_dl1, col_dl2 = st.columns([3, 1])
+        with col_dl1:
+            st.download_button(
+                label="Download CSV File",
+                data=processed['csv_content'],
+                file_name=processed['csv_filename'],
+                mime="text/csv",
+                key="download_csv_original"
+            )
+
         
         st.markdown("---")
         st.subheader("Converting Coordinates: XRF Measurement to Optical Measurement")
@@ -1241,18 +1260,18 @@ with tab4:
             with col_right:
                 st.markdown("##### Optical Measurement Coordinates")
                 col5, col6 = st.columns(2)
-                x_1_opt = col5.number_input("x1 (mm)", value=5.0, format="%.3f")
-                y_1_opt = col6.number_input("y1 (mm)", value=5.0, format="%.3f")
+                x_1_opt = col5.number_input("x1 (mm)", value=5.0, format="%.3f", key="x1_opt")
+                y_1_opt = col6.number_input("y1 (mm)", value=5.0, format="%.3f", key="y1_opt")
                 col7, col8 = st.columns(2)
-                x_2_opt = col7.number_input("x2 (mm)", value=45.0, format="%.3f")
-                y_2_opt = col8.number_input("y2 (mm)", value=45.0, format="%.3f")
+                x_2_opt = col7.number_input("x2 (mm)", value=45.0, format="%.3f", key="x2_opt")
+                y_2_opt = col8.number_input("y2 (mm)", value=45.0, format="%.3f", key="y2_opt")
             
             optical_bounds = {
                 'x_1': x_1_opt, 'y_1': y_1_opt,
                 'x_2': x_2_opt, 'y_2': y_2_opt
             }
             
-            if st.button("Convert Coordinates", type="primary"):
+            if st.button("Convert Coordinates", type="primary", key="convert_coords_button"):
                 converted_data_result = convert_xrf_to_optical(combined_data, xrf_bounds, optical_bounds)
                 st.session_state['converted_data'] = converted_data_result
                 
@@ -1276,15 +1295,19 @@ with tab4:
                 
                 created_date = datetime.now().strftime("%Y%m%d")
                 created_time = datetime.now().strftime("%H%M%S")
-                operator_formatted = metadata['operator']
-                csv_filename_converted = f"{metadata['substrate_number']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_mapping_xrf_{metadata['xrf_fitting_method']}_{created_date}_{created_time}.csv"
-                
-                st.download_button(
-                    label="Download CSV File with Optical Coordinates",
-                    data=csv_content_converted,
-                    file_name=csv_filename_converted,
-                    mime="text/csv",
-                    type="primary"
+                operator_formatted = metadata['operator'].replace(' ', '_')
+                x_method_base = Path(metadata['x_method_name']).stem  # Remove .xadf extension
+                measurement_type_clean = metadata['measurement_type'].lower().replace(' ', '_')
+                csv_filename_converted = f"{metadata['substrate_number']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_{measurement_type_clean}_{x_method_base}_{created_date}_{created_time}.csv"
 
-                )
 
+                col_dl3, col_dl4 = st.columns([3, 1])
+                with col_dl3:
+                    st.download_button(
+                        label="Download CSV File with Optical Coordinates",
+                        data=csv_content_converted,
+                        file_name=csv_filename_converted,
+                        mime="text/csv",
+                        type="primary",
+                        key="download_csv_converted"
+                    )
