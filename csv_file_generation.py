@@ -1140,9 +1140,8 @@ with tab4:
                     operator_formatted = metadata_dict['operator']
                 
                     x_method_base = Path(metadata['x_method_name']).stem  # Remove .xadf extension
-                    measurement_type_clean = metadata_dict['measurement_type'].lower().replace(' ', '_')
 
-                    csv_filename = f"{metadata_dict['substrate_number']}_{metadata_dict['institution']}_{operator_formatted}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_{measurement_type_clean}_{x_method_base}_original_{created_date}_{created_time}.csv"                
+                    csv_filename = f"{metadata_dict['substrate_number']}_{metadata_dict['institution']}_{operator_formatted}_{metadata_dict['treatment_method']}_{metadata_dict['treatment_sequence']}_mapping_xrf_{x_method_base}_original_{created_date}_{created_time}.csv"                
                                     
                     # Store in session state
                     st.session_state.processed_data = {
@@ -1297,8 +1296,7 @@ with tab4:
                 created_time = datetime.now().strftime("%H%M%S")
                 operator_formatted = metadata['operator']
                 x_method_base = Path(metadata['x_method_name']).stem  # Remove .xadf extension
-                measurement_type_clean = metadata['measurement_type'].lower().replace(' ', '_')
-                csv_filename_converted = f"{metadata['substrate_number']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_{measurement_type_clean}_{x_method_base}_{created_date}_{created_time}.csv"
+                csv_filename_converted = f"{metadata['substrate_number']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_mapping_xrf_{x_method_base}_{created_date}_{created_time}.csv"
 
 
                 col_dl3, col_dl4 = st.columns([3, 1])
