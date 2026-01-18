@@ -1137,7 +1137,7 @@ with tab4:
                     
                     created_date = datetime.now().strftime("%Y%m%d")
                     created_time = datetime.now().strftime("%H%M%S")
-                    operator_formatted = metadata_dict['operator'].replace(' ', '_')
+                    operator_formatted = metadata_dict['operator']
                 
                     x_method_base = Path(metadata['x_method_name']).stem  # Remove .xadf extension
                     measurement_type_clean = metadata_dict['measurement_type'].lower().replace(' ', '_')
@@ -1295,7 +1295,7 @@ with tab4:
                 
                 created_date = datetime.now().strftime("%Y%m%d")
                 created_time = datetime.now().strftime("%H%M%S")
-                operator_formatted = metadata['operator'].replace(' ', '_')
+                operator_formatted = metadata['operator']
                 x_method_base = Path(metadata['x_method_name']).stem  # Remove .xadf extension
                 measurement_type_clean = metadata['measurement_type'].lower().replace(' ', '_')
                 csv_filename_converted = f"{metadata['substrate_number']}_{metadata['institution']}_{operator_formatted}_{metadata['treatment_method']}_{metadata['treatment_sequence']}_{measurement_type_clean}_{x_method_base}_{created_date}_{created_time}.csv"
