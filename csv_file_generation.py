@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime
 import re
+import io
 from pathlib import Path
 
 from spx_processing_func import *
@@ -330,6 +331,28 @@ treat_time,"{common_data['time']}"
     return csv_content
 
 
+def parse_substrate_range(input_str):
+    """Parse substrate number input into a list of substrate numbers.
+
+    Supports single values ("3716-15") and range syntax ("3716-1 to 30").
+    Range suffixes are zero-padded to the width of the end number.
+    Returns a list of one or more substrate number strings.
+    """
+    input_str = input_str.strip()
+    range_match = re.match(
+        r'^(.+?)-(\d+)\s+to\s+(\d+)$', input_str, re.IGNORECASE
+    )
+    if range_match:
+        prefix = range_match.group(1)
+        start = int(range_match.group(2))
+        end = int(range_match.group(3))
+        if start > end:
+            raise ValueError(f"Range start ({start}) must not exceed range end ({end})")
+        pad_width = len(str(end))
+        return [f"{prefix}-{str(i).zfill(pad_width)}" for i in range(start, end + 1)]
+    return [input_str]
+
+
 # ==================== TAB 1: SUBSTRATE GENERATION ====================
 
 tab1, tab2, tab3, tab4 = st.tabs(["Substrate Generation", "Fabrication Generation", "Treatment Generation", "XRF&SPX Generation"])
@@ -365,7 +388,12 @@ with tab1:
     
     with col1:
         st.subheader("Sample Information")
-        st.session_state.sub_substrate_number = st.text_input("Substrate Number", value=st.session_state.sub_substrate_number, key="sub_sn")
+        st.session_state.sub_substrate_number = st.text_input(
+            "Substrate Number",
+            value=st.session_state.sub_substrate_number,
+            help="Single substrate (e.g. 3716-15) or range (e.g. 3716-1 to 30)",
+            key="sub_sn"
+        )
         st.session_state.sub_institution = st.text_input("Institution", value=st.session_state.sub_institution, key="sub_inst")
         st.session_state.sub_operator = st.text_input("Operator (First and Last Name)", value=st.session_state.sub_operator, help="Must include both first and last name", key="sub_op")
         st.session_state.sub_substrate_type = st.text_input("Substrate Type", value=st.session_state.sub_substrate_type, key="sub_type")
@@ -407,53 +435,79 @@ with tab1:
         else:
             date_formatted = format_date(st.session_state.sub_clean_date)
             time_formatted = convert_time_to_12hour(st.session_state.sub_clean_time)
-            
+
             if not time_formatted:
                 st.error("Invalid time format. Please use HH:MM:SS format")
             else:
-                substrate_data = {
-                    'substrate_number': st.session_state.sub_substrate_number,
-                    'substrate_type': st.session_state.sub_substrate_type,
-                    'production_batch': st.session_state.sub_production_batch,
-                    'vendor': st.session_state.sub_vendor,
-                    'manufacture': st.session_state.sub_manufacture,
-                    'softing_point': st.session_state.sub_softing_point,
-                    'expansion_coefficient': st.session_state.sub_expansion_coefficient,
-                    'temp_celsius': st.session_state.sub_temp_celsius,
-                    'thickness': st.session_state.sub_thickness,
-                    'size': st.session_state.sub_size,
-                    'materials': st.session_state.sub_materials,
-                    'program': st.session_state.sub_program,
-                    'operator': st.session_state.sub_operator,
-                    'institution': st.session_state.sub_institution,
-                    'clean_method': st.session_state.sub_clean_method,
-                    'clean_description': st.session_state.sub_clean_description,
-                    'clean_duration': st.session_state.sub_clean_duration,
-                    'clean_temperature': st.session_state.sub_clean_temperature,
-                    'clean_pressure': st.session_state.sub_clean_pressure,
-                    'clean_date': date_formatted,
-                    'clean_time': time_formatted
-                }
-                
-                csv_content = generate_substrate_csv_content(substrate_data)
-                filename = generate_substrate_filename(
-                    st.session_state.sub_substrate_number,
-                    st.session_state.sub_institution,
-                    st.session_state.sub_operator,
-                    st.session_state.sub_substrate_type
-                )
-                
-                st.success("CSV file generated successfully")
-                
-                st.download_button(
-                    label="Download CSV File",
-                    data=csv_content,
-                    file_name=filename,
-                    mime="text/csv"
-                )
-                
-                with st.expander("Preview CSV Content"):
-                    st.text(csv_content)
+                try:
+                    substrate_numbers = parse_substrate_range(st.session_state.sub_substrate_number)
+                except ValueError as e:
+                    st.error(str(e))
+                    substrate_numbers = []
+
+                if substrate_numbers:
+                    common_data = {
+                        'substrate_type': st.session_state.sub_substrate_type,
+                        'production_batch': st.session_state.sub_production_batch,
+                        'vendor': st.session_state.sub_vendor,
+                        'manufacture': st.session_state.sub_manufacture,
+                        'softing_point': st.session_state.sub_softing_point,
+                        'expansion_coefficient': st.session_state.sub_expansion_coefficient,
+                        'temp_celsius': st.session_state.sub_temp_celsius,
+                        'thickness': st.session_state.sub_thickness,
+                        'size': st.session_state.sub_size,
+                        'materials': st.session_state.sub_materials,
+                        'program': st.session_state.sub_program,
+                        'operator': st.session_state.sub_operator,
+                        'institution': st.session_state.sub_institution,
+                        'clean_method': st.session_state.sub_clean_method,
+                        'clean_description': st.session_state.sub_clean_description,
+                        'clean_duration': st.session_state.sub_clean_duration,
+                        'clean_temperature': st.session_state.sub_clean_temperature,
+                        'clean_pressure': st.session_state.sub_clean_pressure,
+                        'clean_date': date_formatted,
+                        'clean_time': time_formatted
+                    }
+
+                    generated_files = []
+                    for sub_num in substrate_numbers:
+                        substrate_data = {'substrate_number': sub_num, **common_data}
+                        csv_content = generate_substrate_csv_content(substrate_data)
+                        filename = generate_substrate_filename(
+                            sub_num,
+                            st.session_state.sub_institution,
+                            st.session_state.sub_operator,
+                            st.session_state.sub_substrate_type
+                        )
+                        generated_files.append((filename, csv_content))
+
+                    if len(generated_files) == 1:
+                        filename, csv_content = generated_files[0]
+                        st.success("CSV file generated successfully")
+                        st.download_button(
+                            label="Download CSV File",
+                            data=csv_content,
+                            file_name=filename,
+                            mime="text/csv"
+                        )
+                        with st.expander("Preview CSV Content"):
+                            st.text(csv_content)
+                    else:
+                        zip_buffer = io.BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                            for filename, csv_content in generated_files:
+                                zf.writestr(filename, csv_content)
+                        zip_buffer.seek(0)
+                        st.success(f"{len(generated_files)} CSV files generated successfully")
+                        st.download_button(
+                            label=f"Download All {len(generated_files)} CSV Files (ZIP)",
+                            data=zip_buffer,
+                            file_name="substrates.zip",
+                            mime="application/zip"
+                        )
+                        with st.expander("Preview generated substrate numbers"):
+                            for sub_num in substrate_numbers:
+                                st.text(sub_num)
 
 
 # ==================== TAB 2: FABRICATION GENERATION ====================
