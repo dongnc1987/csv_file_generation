@@ -391,7 +391,7 @@ with tab1:
         st.session_state.sub_substrate_number = st.text_input(
             "Substrate Number",
             value=st.session_state.sub_substrate_number,
-            help="Single substrate (e.g. 3716-15) or range (e.g. 3716-1 to 30)",
+            help="Single substrate (e.g. 3716-15) or range (e.g. 3716-01 to 30)",
             key="sub_sn"
         )
         st.session_state.sub_institution = st.text_input("Institution", value=st.session_state.sub_institution, key="sub_inst")
