@@ -28,6 +28,19 @@ pip install -r requirements.txt
 streamlit run csv_file_generation.py
 ```
 
+## Project structure
+
+```
+csv_file_generation.py    Main entry point; defines tabs and wires up modules
+substrate_func.py         Substrate functions and tab 1 UI
+fabrication_func.py       Fabrication functions and tab 2 UI
+treatment_function.py     Treatment functions and tab 3 UI
+spx_processing_func.py    XRF/SPX processing functions (tab 4)
+```
+
+`substrate_func.py` also exports shared utilities used by the other modules:
+`validate_operator_name`, `convert_time_to_12hour`, `format_date`, `parse_substrate_range`.
+
 ## Tabs
 
 ### 1. Substrate Generation
@@ -60,10 +73,27 @@ Supported methods:
 | Sputtering | program, duration, power, current, voltage, gas mix, process pressure, pre-fab pressure, notes |
 | Tube Furnace | temperature, ramp rate, selenium/sulfur amounts, pressure, humidity, duration, cooling time, storage days, sample orientation, weight before/after |
 | RTP | pressure, box type, selenium/sulfur amounts, steps, recipe, ramp rate, holding time, orientation, weight before/after |
-| PLD | pre-ablation parameters (shots, frequency, fluence, gas pressure, gas type, duration) and deposition parameters (temperature, shots, frequency, fluence, gas pressure, gas type, duration) |
+| PLD | pre-ablation block + process block + one or more deposition recipes |
 | PVD-P | upload an existing PVD-P CSV; the app extracts metadata automatically and re-formats the filename and operator field |
 
 Common fields for all non-PVD-P methods: substrate number, institution, operator, fabrication sequence, date, time.
+
+#### PLD CSV structure
+
+A PLD record has three sections in the output CSV:
+
+1. **Pre-Ablation** — target location (On Sample / On Dummy), shots, laser frequency, fluence, gas pressure, gas type, duration.
+
+2. **Process** — process name, substrate size, number of samples, mask aperture, plasma, sample holder, recipe count.
+
+3. **Recipes** — one or more deposition recipes, numbered `recipe_1`, `recipe_2`, etc. Each recipe contains:
+   - Recipe metadata: name, index, duration
+   - Scan parameters: wedge, volume/shot, desired thickness, xSub limits, scanner amplitude, laser frequency, number of shots (nos), xSub and scanner velocities, layers
+   - Heater parameters: substrate temperature and heat rate for three heater zones
+   - Target and process parameters: target material, target diameter, target cycle, pre-mix fill date, target rotation, fluence/energy, pressure, gas flows (O2, N2, Ar), substrate rotation, zSub position, attenuation angle
+   - Correction parameters: five correction coefficients and three dX-corrected values
+
+Use the **Add Recipe** button to add additional recipes to a process. Each recipe is shown in a collapsible expander. Recipes beyond the first can be removed individually.
 
 ### 3. Treatment Generation
 
@@ -87,7 +117,7 @@ Processes spectral measurement data from two uploaded sources:
 - XRF results in XLS/XLSX format
 - SPX spectrum files packaged in a ZIP archive
 
-The tab reads both files, matches SPX spectra to XRF entries, and generates the corresponding CSV output for database import.
+The tab reads both files, matches SPX spectra to XRF entries, and generates the corresponding CSV output for database import. A coordinate conversion tool is provided to transform XRF measurement coordinates to optical measurement coordinates.
 
 ## File naming convention
 
