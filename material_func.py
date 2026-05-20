@@ -128,6 +128,12 @@ def render_material_tab():
             ["4N", "4N5", "5N", "6N", "3N", "2N", "Other"],
             key="mat_purity_grade"
         )
+        if mat_purity_grade == "Other":
+            mat_purity_grade = st.text_input(
+                "Custom purity grade",
+                placeholder="e.g. 3N5",
+                key="mat_purity_grade_custom"
+            )
     with col4:
         mat_identifier = st.text_input(
             "Identifier (for duplicates)",
@@ -176,6 +182,12 @@ def render_material_tab():
             index=2,
             key="mat_purity_full"
         )
+        if mat_purity_full == "Other":
+            mat_purity_full = st.text_input(
+                "Custom purity",
+                placeholder="e.g. 3N5 (99.95%)",
+                key="mat_purity_full_custom"
+            )
         mat_cas = st.text_input(
             "CAS Number",
             value="7440-50-8",
