@@ -111,7 +111,7 @@ def render_material_tab():
     with col1:
         mat_element = st.text_input(
             "Element / Compound abbreviation",
-            value="",
+            value="Cu",
             placeholder="e.g. Cu, Cu2BaSe2",
             key="mat_element"
         )
@@ -131,7 +131,7 @@ def render_material_tab():
     with col4:
         mat_identifier = st.text_input(
             "Identifier (for duplicates)",
-            value="",
+            value="alpha",
             placeholder="e.g. alpha, beta, 1",
             key="mat_identifier"
         )
@@ -148,13 +148,13 @@ def render_material_tab():
     with col1:
         mat_name = st.text_input(
             "Material Name",
-            value="",
+            value="Copper",
             placeholder="e.g. Copper, Copper selenide",
             key="mat_name"
         )
         mat_formula = st.text_input(
             "Chemical Formula",
-            value="",
+            value="Cu",
             placeholder="e.g. Cu, Cu2Se",
             key="mat_formula"
         )
@@ -178,20 +178,20 @@ def render_material_tab():
         )
         mat_cas = st.text_input(
             "CAS Number",
-            value="",
+            value="7440-50-8",
             placeholder="e.g. 7440-50-8",
             key="mat_cas",
             help="Chemical Abstracts Service registry number"
         )
         mat_lot = st.text_input(
             "Lot / Batch Number",
-            value="",
+            value="L2024110501",
             placeholder="e.g. L2024110501",
             key="mat_lot"
         )
         mat_dimensions = st.text_input(
             "Dimensions",
-            value="",
+            value="50 mm dia x 6 mm thick",
             placeholder="e.g. 50 mm dia x 6 mm thick",
             key="mat_dimensions",
             help="Relevant for targets: diameter x thickness; for foils: width x length x thickness"
@@ -200,7 +200,7 @@ def render_material_tab():
     with col3:
         mat_quantity = st.text_input(
             "Initial Quantity",
-            value="",
+            value="500",
             placeholder="e.g. 500",
             key="mat_quantity"
         )
@@ -211,13 +211,13 @@ def render_material_tab():
         )
         mat_storage = st.text_input(
             "Storage Location",
-            value="",
+            value="Cabinet A, Shelf 2",
             placeholder="e.g. Cabinet A, Shelf 2",
             key="mat_storage"
         )
         mat_expiry = st.text_input(
             "Expiry Date",
-            value="",
+            value="N/A",
             placeholder="e.g. 2028-01-01 or N/A",
             key="mat_expiry"
         )
@@ -231,7 +231,7 @@ def render_material_tab():
     with col1:
         mat_origin = st.text_input(
             "Origin / Supplier",
-            value="",
+            value="Testbourne Ltd",
             placeholder="e.g. Testbourne Ltd, Sigma-Aldrich",
             key="mat_origin"
         )
@@ -260,12 +260,14 @@ def render_material_tab():
         mat_institution = st.text_input(
             "Institution",
             value=st.session_state.get('mat_institution', "HZB"),
+            placeholder="e.g. HZB",
             key="mat_institution"
         )
     with col2:
         mat_operator = st.text_input(
             "Operator (First and Last Name)",
             value=st.session_state.get('mat_operator', "Steinkopf Lars"),
+            placeholder="e.g. Steinkopf Lars",
             key="mat_operator"
         )
     with col3:
@@ -277,6 +279,7 @@ def render_material_tab():
         mat_reg_time = st.text_input(
             "Registration Time",
             value="14:01:15",
+            placeholder="e.g. 14:01:15",
             help="Format: HH:MM:SS (24-hour)",
             key="mat_reg_time"
         )
