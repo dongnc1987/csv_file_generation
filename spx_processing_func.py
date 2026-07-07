@@ -168,11 +168,41 @@ def find_xyz_from_blob(blob: bytes):
     return best
 
 
+def extract_xyz_from_rtrem(root: ET.Element):
+    """Extract X, Y, Z stage coordinates from the RTREM ClassInstance blob"""
+    rtrem_data = None
+    for elem in root.iter("ClassInstance"):
+        if elem.attrib.get("Name") == "RTREM":
+            data_elem = elem.find("Data")
+            if data_elem is not None and data_elem.text:
+                rtrem_data = data_elem.text.strip()
+            break
+
+    if rtrem_data is None:
+        return None
+
+    try:
+        blob = base64.b64decode(rtrem_data)
+        x = struct.unpack_from("<d", blob, 121)[0]
+        y = struct.unpack_from("<d", blob, 129)[0]
+        z = struct.unpack_from("<d", blob, 137)[0]
+    except struct.error:
+        return None
+
+    return x, y, z
+
+
 def extract_xyz_positions_from_spx(root: ET.Element):
     """Extract X, Y, Z positions from SPX file in millimeters"""
+
+    # Method 1: RTREM ClassInstance blob (stage coordinates)
+    rtrem_xyz = extract_xyz_from_rtrem(root)
+    if rtrem_xyz is not None:
+        return float(rtrem_xyz[0]), float(rtrem_xyz[1]), float(rtrem_xyz[2])
+
     positions = {}
 
-    # Method 1: Look for Axis elements
+    # Method 2: Look for Axis elements
     for elem in root.iter():
         tag_local = _localname(elem.tag)
         if tag_local.startswith("Axis"):
@@ -196,7 +226,7 @@ def extract_xyz_positions_from_spx(root: ET.Element):
 
         return x_mm, y_mm, z_mm
 
-    # Method 2: Look for Data blob
+    # Method 3: Look for Data blob
     for node in root.iter():
         if _localname(node.tag) != "Data":
             continue
@@ -908,49 +938,59 @@ def render_coord_extractor_tab():
     st.header("SPX Parameter & Coordinate Extractor")
     st.write("Upload one or more Bruker .spx spectrum files to extract their parameters and stage X/Y/Z coordinates.")
 
+    if "spx_coord_extractor_uploader_key" not in st.session_state:
+        st.session_state.spx_coord_extractor_uploader_key = 0
+
     uploaded_files = st.file_uploader(
         "Choose .spx file(s)", type=["spx"], accept_multiple_files=True,
-        key="spx_coord_extractor_uploader"
+        key=f"spx_coord_extractor_uploader_{st.session_state.spx_coord_extractor_uploader_key}"
     )
 
-    if not uploaded_files:
-        return
+    if "spx_coord_extractor_rows" not in st.session_state:
+        st.session_state.spx_coord_extractor_rows = {}
 
-    uploaded_files = sorted(uploaded_files, key=lambda f: f.name.lower())
+    if uploaded_files:
+        for file in sorted(uploaded_files, key=lambda f: f.name.lower()):
+            with tempfile.NamedTemporaryFile(suffix=".spx", delete=False) as tmp:
+                tmp.write(file.read())
+                tmp_path = Path(tmp.name)
 
-    rows = []
-    for file in uploaded_files:
-        with tempfile.NamedTemporaryFile(suffix=".spx", delete=False) as tmp:
-            tmp.write(file.read())
-            tmp_path = Path(tmp.name)
+            try:
+                spx_data = parse_spx_file(tmp_path)
+            except (ET.ParseError, ValueError) as e:
+                st.error(f"{file.name}: could not parse SPX file ({e})")
+                continue
+            finally:
+                tmp_path.unlink(missing_ok=True)
 
-        try:
-            spx_data = parse_spx_file(tmp_path)
-        except (ET.ParseError, ValueError) as e:
-            st.error(f"{file.name}: could not parse SPX file ({e})")
-            continue
-        finally:
-            tmp_path.unlink(missing_ok=True)
+            st.session_state.spx_coord_extractor_rows[file.name] = {
+                "File": file.name,
+                "Date": spx_data['date'],
+                "Time": spx_data['time'],
+                "X (mm)": spx_data['x_position_mm'],
+                "Y (mm)": spx_data['y_position_mm'],
+                "Z (mm)": spx_data['z_position_mm'],
+                "X-ray Tube Target": spx_data['xray_tube_target'],
+                "Voltage (kV)": spx_data['voltage_kV'],
+                "Current (uA)": spx_data['current_uA'],
+                "Real Time (ms)": spx_data['real_time_ms'],
+                "Live Time (ms)": spx_data['live_time_ms'],
+                "Dead Time (%)": spx_data['dead_time_percent'],
+                "Total Counts": spx_data['total_counts'],
+                "Max Counts": spx_data['max_counts'],
+            }
 
-        rows.append({
-            "File": file.name,
-            "Date": spx_data['date'],
-            "Time": spx_data['time'],
-            "X (mm)": spx_data['x_position_mm'],
-            "Y (mm)": spx_data['y_position_mm'],
-            "Z (mm)": spx_data['z_position_mm'],
-            "X-ray Tube Target": spx_data['xray_tube_target'],
-            "Voltage (kV)": spx_data['voltage_kV'],
-            "Current (uA)": spx_data['current_uA'],
-            "Real Time (ms)": spx_data['real_time_ms'],
-            "Live Time (ms)": spx_data['live_time_ms'],
-            "Dead Time (%)": spx_data['dead_time_percent'],
-            "Total Counts": spx_data['total_counts'],
-            "Max Counts": spx_data['max_counts'],
-        })
+        st.session_state.spx_coord_extractor_uploader_key += 1
+        st.rerun()
+
+    rows = st.session_state.spx_coord_extractor_rows
 
     if rows:
-        df = pd.DataFrame(rows)
+        if st.button("Clear results", key="clear_spx_coord_results"):
+            st.session_state.spx_coord_extractor_rows = {}
+            st.rerun()
+
+        df = pd.DataFrame(sorted(rows.values(), key=lambda r: r["File"].lower()))
         st.dataframe(df, use_container_width=True, hide_index=True)
 
         csv = df.to_csv(index=False)
