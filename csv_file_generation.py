@@ -28,12 +28,13 @@ def extract_spx_files_from_zip(zip_file):
 st.set_page_config(layout="wide")
 st.title("CSV File Generator for Sample Database")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Substrate Generation",
     "Fabrication Generation",
     "Treatment Generation",
     "XRF&SPX Generation",
-    "Material Registry"
+    "Material Registry",
+    "SPX Coordinate Extractor"
 ])
 
 with tab1:
@@ -47,6 +48,9 @@ with tab3:
 
 with tab5:
     render_material_tab()
+
+with tab6:
+    render_coord_extractor_tab()
 
 with tab4:
     st.header("SPX & XRF CSV File Generation")

@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 import base64
 import struct
+import tempfile
 from typing import Dict, List, Optional
 
 
@@ -896,6 +897,67 @@ def plot_spectrum(data: Dict, title: str, yscale: str = "linear"):
     
     return fig
 
+
+
+# ============================================================================
+# SPX COORDINATE EXTRACTOR UI
+# ============================================================================
+
+def render_coord_extractor_tab():
+    """Render tab to extract parameters and coordinates from SPX files only"""
+    st.header("SPX Parameter & Coordinate Extractor")
+    st.write("Upload one or more Bruker .spx spectrum files to extract their parameters and stage X/Y/Z coordinates.")
+
+    uploaded_files = st.file_uploader(
+        "Choose .spx file(s)", type=["spx"], accept_multiple_files=True,
+        key="spx_coord_extractor_uploader"
+    )
+
+    if not uploaded_files:
+        return
+
+    uploaded_files = sorted(uploaded_files, key=lambda f: f.name.lower())
+
+    rows = []
+    for file in uploaded_files:
+        with tempfile.NamedTemporaryFile(suffix=".spx", delete=False) as tmp:
+            tmp.write(file.read())
+            tmp_path = Path(tmp.name)
+
+        try:
+            spx_data = parse_spx_file(tmp_path)
+        except (ET.ParseError, ValueError) as e:
+            st.error(f"{file.name}: could not parse SPX file ({e})")
+            continue
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+        rows.append({
+            "File": file.name,
+            "Date": spx_data['date'],
+            "Time": spx_data['time'],
+            "X (mm)": spx_data['x_position_mm'],
+            "Y (mm)": spx_data['y_position_mm'],
+            "Z (mm)": spx_data['z_position_mm'],
+            "X-ray Tube Target": spx_data['xray_tube_target'],
+            "Voltage (kV)": spx_data['voltage_kV'],
+            "Current (uA)": spx_data['current_uA'],
+            "Real Time (ms)": spx_data['real_time_ms'],
+            "Live Time (ms)": spx_data['live_time_ms'],
+            "Dead Time (%)": spx_data['dead_time_percent'],
+            "Total Counts": spx_data['total_counts'],
+            "Max Counts": spx_data['max_counts'],
+        })
+
+    if rows:
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        csv = df.to_csv(index=False)
+        st.download_button(
+            "Download as CSV", data=csv, file_name="spx_coordinates.csv",
+            mime="text/csv", key="download_spx_coord_csv"
+        )
 
 
 # ============================================================================
